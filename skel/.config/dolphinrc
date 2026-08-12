@@ -1,0 +1,23 @@
+[DetailsMode]
+PreviewSize=16
+
+[General]
+EditableUrl=true
+ShowStatusBar=FullWidth
+Version=202
+ViewPropsTimestamp=2026,8,12,18,59,27.156
+
+[KFileDialog Settings]
+Places Icons Auto-resize=false
+Places Icons Static Size=22
+
+[MainWindow][Toolbar mainToolBar]
+IconSize=16
+ToolButtonStyle=IconOnly
+
+[PreviewSettings]
+Plugins=appimagethumbnail,cursorthumbnail,fontthumbnail,ffmpegthumbs,audiothumbnail,djvuthumbnail,blenderthumbnail,mobithumbnail,gsthumbnail,rawthumbnail,comicbookthumbnail,opendocumentthumbnail,kraorathumbnail,ebookthumbnail,windowsexethumbnail,gdk-pixbuf-thumbnailer,imagethumbnail,windowsimagethumbnail,exrthumbnail,jpegthumbnail,svgthumbnail,calligraimagethumbnail,calligrathumbnail,directorythumbnail,webarchivethumbnail
+
+[Toolbar mainToolBar]
+IconSize=16
+ToolButtonStyle=IconOnly

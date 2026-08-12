@@ -1,0 +1,14 @@
+# Ignore everything by default; only the files below are tracked.
+*
+
+# ...except directories, so git will look inside them for the allow-list.
+!*/
+
+# Allowed files
+!/skel
+!/skel/**
+!/build-iso.sh
+!/customize-home.sh
+!/customize-skel.sh
+!/README.md
+!/.gitignore
