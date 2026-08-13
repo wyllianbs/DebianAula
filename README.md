@@ -50,15 +50,45 @@ distraction-free environment out of the box.
 | `customize-home.sh` | Runs automatically (as the live user, before the interactive step) to install things that need real commands rather than static config files: npm globals, LazyVim, kate-quickrun (always fetching the *latest* GitHub release), conky. |
 | `skel/` | The actual dotfiles/config template applied to every new build: Dolphin, Konsole (+ Catppuccin color schemes), Kate, KDE global settings (theme, panel, keyboard, screen lock, splash, wallpaper), VS Code, Thonny. Edit files here directly to change what ships by default — no need to touch `build-iso.sh`. |
 
-## Usage
+## Installation
 
-Requirements: a Debian/KDE Plasma host (or VM) with a real TTY, `sudo`, and an
-X server running (`DISPLAY` set). `Xephyr` (`xserver-xephyr`) is required for
-the interactive customization step.
+### Prerequisites
+
+The build must run on a **Debian-based host with KDE Plasma** (bare metal or
+VM) that has:
+
+- A **real TTY** — not a background process or CI runner. The build pauses
+  for interactive input more than once.
+- **`sudo`** configured for your user.
+- An **X server running**, with `DISPLAY` set (i.e. you're in a graphical
+  session).
+- **Internet access** — the build downloads the base Debian Live ISO (if not
+  already present) and installs/updates a large number of packages.
+- **`git`** and **`xserver-xephyr`** installed:
+
+  ```bash
+  sudo apt-get update
+  sudo apt-get install -y git xserver-xephyr
+  ```
+
+  Everything else `build-iso.sh` needs on the host (`xorriso`,
+  `squashfs-tools`, `syslinux`, etc.) is installed automatically as part of
+  the build.
+
+- Enough free disk space for a Debian Live ISO build: the base ISO (~4GB),
+  the extracted squashfs (~5-6GB), and the final ISO (~4-6GB) coexist during
+  the build — budget at least **20GB free**.
+
+### Clone and run
 
 ```bash
+git clone https://github.com/wyllianbs/DebianAula.git
+cd DebianAula
 bash build-iso.sh
 ```
+
+(The scripts are already marked executable in the repository, so no `chmod`
+is needed — `bash build-iso.sh` is enough.)
 
 You'll be asked for:
 1. The live user's **username** and **password**.
@@ -67,14 +97,37 @@ You'll be asked for:
 The build then runs mostly unattended. It pauses twice for interaction:
 
 - **Full-rebuild confirmation** (only if a previous build's `iso/`/`squashfs-root/`
-  already exist) — decide whether to start fresh or reuse what's there.
+  already exist — won't happen on a fresh clone) — decide whether to start
+  fresh or reuse what's there.
 - **Interactive desktop session**: a nested X server (Xephyr) opens a nearly-
   complete desktop, isolated from your real session, where you can make any
   additional manual tweaks (Dolphin view mode, Konsole toolbar, etc.) before
   the ISO is finalized. Close the apps you opened normally, then close the
   Xephyr window (or type `exit`) to resume the automated build.
 
-The finished ISO is written to `DebianAula.iso` in the working directory.
+The finished ISO is written to `DebianAula.iso` in the repository directory.
+A full build (fresh clone, nothing cached) typically takes a while — expect
+it to run for an hour or more, mostly unattended, depending on your internet
+connection and hardware.
+
+### Testing the ISO
+
+Boot it in a VM before writing it to a real USB drive. For example, with QEMU:
+
+```bash
+qemu-system-x86_64 \
+    -enable-kvm -cpu host \
+    -m 8G -vga virtio -usb \
+    -device intel-hda -device hda-duplex \
+    -drive format=raw,file=DebianAula.iso
+```
+
+Or write it to a USB drive directly (⚠️ this overwrites the target device —
+double-check `/dev/sdX`):
+
+```bash
+sudo dd if=DebianAula.iso of=/dev/sdX bs=4M status=progress oflag=sync
+```
 
 ## Customizing further
 
