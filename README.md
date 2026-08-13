@@ -64,16 +64,16 @@ VM) that has:
   session).
 - **Internet access** — the build downloads the base Debian Live ISO (if not
   already present) and installs/updates a large number of packages.
-- **`git`** and **`xserver-xephyr`** installed:
+- **`git`** installed, to clone this repository:
 
   ```bash
   sudo apt-get update
-  sudo apt-get install -y git xserver-xephyr
+  sudo apt-get install -y git
   ```
 
   Everything else `build-iso.sh` needs on the host (`xorriso`,
-  `squashfs-tools`, `syslinux`, etc.) is installed automatically as part of
-  the build.
+  `squashfs-tools`, `syslinux`, `xserver-xephyr`, etc.) is installed
+  automatically as part of the build.
 
 - Enough free disk space for a Debian Live ISO build: the base ISO (~4GB),
   the extracted squashfs (~5-6GB), and the final ISO (~4-6GB) coexist during

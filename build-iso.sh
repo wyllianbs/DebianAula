@@ -174,7 +174,7 @@ msg ">>> [2/8] Instalando dependências no host..." ">>> [2/8] Installing depend
 sudo apt-get update
 sudo apt-get install -y \
     xorriso squashfs-tools syslinux syslinux-efi isolinux fakeroot \
-    htop vim atop cloud-init bindfs
+    htop vim atop cloud-init bindfs xserver-xephyr
 
 # ============================================================ #
 # 3. EXTRAÇÃO DO ISO E DO SQUASHFS
