@@ -10,9 +10,10 @@ and a pre-configured desktop environment — so students get a consistent,
 distraction-free environment out of the box.
 
 > **Download**: a pre-built ISO is available on the
-> [Internet Archive](https://archive.org/details/DebianAula) — no build
-> required. Prefer to build it yourself (and audit exactly what goes into
-> the image)? See [Installation](#installation) below.
+> [Internet Archive](https://archive.org/details/DebianAula)
+> ([direct download](https://archive.org/download/DebianAula/DebianAula.iso))
+> — no build required. Prefer to build it yourself (and audit exactly what
+> goes into the image)? See [Installation](#installation) below.
 
 ## What you get
 
