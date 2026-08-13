@@ -50,7 +50,6 @@ end' > ~/.conky/conky_lua_scripts.lua
 
 cat > ~/.conky/settings.lua << 'EOF'
 conky.config = {
-debian_colour = '#d70a53',
 update_interval = 1.5,
 total_run_times = 0,
 use_xft = true,
@@ -88,10 +87,10 @@ short_units = yes,
 lua_load = '~/.conky/conky_lua_scripts.lua'
 conky.text = [[
 ${if_match "${exec cat /etc/issue | grep "Debian" | cut -d' ' -f1}" == "Debian"}#
-${font Hack\ Nerd\ Font:Monospace:size=50}${color debian_colour}${color yellow}${voffset 0}${alignr}${font Michroma:bold:size=8}${exec lsb_release -d | cut -f2} [${exec lsb_release -c | cut -f2}]${font Play:Monospace:size=8}
+${font Hack\ Nerd\ Font:Monospace:size=50}${color #d70a53}${color yellow}${voffset 0}${alignr}${font Michroma:bold:size=8}${exec lsb_release -d | cut -f2} [${exec lsb_release -c | cut -f2}]${font Play:Monospace:size=8}
 ${endif}#
 ${if_match "${exec cat /etc/issue | grep "Ubuntu" | cut -d' ' -f1}" == "Ubuntu"}#
-${font Hack\ Nerd\ Font:Monospace:size=50}${voffset 0}${alignr}${font Michroma:bold:size=8}${exec lsb_release -d | cut -f2} [${exec lsb_release -c | cut -f2}]${font Play:Monospace:size=8}
+${font Hack\ Nerd\ Font:Monospace:size=50}${voffset 0}${alignr}${font Michroma:bold:size=8}${exec lsb_release -d | cut -f2} [${exec lsb_release -c | cut -f2}]${font Play:Monospace:size=8}
 ${endif}#
 ${if_match "${exec cat /etc/issue | grep "Fedora" | cut -d' ' -f1}" == "Fedora"}#
 ${font Hack\ Nerd\ Font:Monospace:size=50}󰣛${voffset 0}${alignr}${font Michroma:bold:size=8}${exec lsb_release -d | cut -f2} [${exec lsb_release -c | cut -f2}]${font Play:Monospace:size=8}
