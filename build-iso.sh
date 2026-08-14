@@ -90,6 +90,32 @@ case "${ISO_LOCALE_CHOICE,,}" in
 esac
 msg ">>> Idioma da ISO: $ISO_LOCALE" ">>> ISO language: $ISO_LOCALE"
 
+echo
+msg "Layout de teclado do sistema (tela de login, TTY e sessão KDE)." "System keyboard layout (login screen, TTY, and KDE session)."
+msg "Principais opções — digite o código:" "Main options — type the code:"
+msg "  br — ABNT2 / Português do Brasil (padrão)" "  br — ABNT2 / Brazilian Portuguese (default)"
+msg "  us — US Internacional" "  us — US International"
+msg "  es — Espanhol" "  es — Spanish"
+msg "  fr — Francês" "  fr — French"
+msg "  de — Alemão" "  de — German"
+msg "  it — Italiano" "  it — Italian"
+read -rp "$(mp "Código [br]: " "Code [br]: ")" KEYBOARD_LAYOUT
+KEYBOARD_LAYOUT="${KEYBOARD_LAYOUT:-br}"
+KEYBOARD_LAYOUT="${KEYBOARD_LAYOUT,,}"
+msg ">>> Teclado: $KEYBOARD_LAYOUT" ">>> Keyboard: $KEYBOARD_LAYOUT"
+
+echo
+msg "Fuso horário do sistema (formato IANA, ex: America/Sao_Paulo)." "System timezone (IANA format, e.g. America/Sao_Paulo)."
+msg "Sugestões: America/Sao_Paulo (padrão), America/New_York, Europe/Lisbon," "Suggestions: America/Sao_Paulo (default), America/New_York, Europe/Lisbon,"
+msg "            Europe/Madrid, Europe/Paris, Europe/Berlin, Europe/Rome, UTC" "            Europe/Madrid, Europe/Paris, Europe/Berlin, Europe/Rome, UTC"
+read -rp "$(mp "Fuso [America/Sao_Paulo]: " "Timezone [America/Sao_Paulo]: ")" TIMEZONE
+TIMEZONE="${TIMEZONE:-America/Sao_Paulo}"
+if [[ ! -e "/usr/share/zoneinfo/$TIMEZONE" ]]; then
+    msg ">>> AVISO: fuso '$TIMEZONE' não encontrado neste host — usando America/Sao_Paulo." ">>> WARNING: timezone '$TIMEZONE' not found on this host — falling back to America/Sao_Paulo."
+    TIMEZONE="America/Sao_Paulo"
+fi
+msg ">>> Fuso horário: $TIMEZONE" ">>> Timezone: $TIMEZONE"
+
 # ============================================================ #
 # 0. VERIFICAÇÃO DE VERSÃO E ATUALIZAÇÃO COMPLETA (opcional)
 # ============================================================ #
@@ -279,7 +305,7 @@ trap cleanup EXIT
 # Popula /etc/skel com as customizações de usuário (Dolphin, Firefox,
 # Konsole, Kate, painel/systray/relógio). Precisa rodar ANTES do adduser
 # (etapa 5), para que o novo usuário já nasça com tudo aplicado.
-LANG_MODE="$LANG_MODE" bash "$WORKDIR/customize-skel.sh" squashfs-root "$LIVE_USER"
+LANG_MODE="$LANG_MODE" bash "$WORKDIR/customize-skel.sh" squashfs-root "$LIVE_USER" "$KEYBOARD_LAYOUT" "$ISO_LOCALE"
 
 # ============================================================ #
 # 5. ETAPA ROOT DENTRO DO CHROOT (automática)
@@ -291,7 +317,7 @@ msg ">>> [5/8] Rodando configuração de sistema (root) dentro do chroot..." ">>
 # pode ter ficado com pacotes "half-configured". Corrige antes de continuar.
 sudo chroot squashfs-root dpkg --configure -a 2>/dev/null || true
 
-sudo chroot squashfs-root /usr/bin/env LIVE_USER="$LIVE_USER" LIVE_PASSWORD="$LIVE_PASSWORD" ISO_MODE="$ISO_MODE" LANG_MODE="$LANG_MODE" ISO_LOCALE="$ISO_LOCALE" ISO_LANGUAGE="$ISO_LANGUAGE" ISO_LANG_PKG="$ISO_LANG_PKG" /bin/bash -s <<'CHROOT_ROOT_SETUP'
+sudo chroot squashfs-root /usr/bin/env LIVE_USER="$LIVE_USER" LIVE_PASSWORD="$LIVE_PASSWORD" ISO_MODE="$ISO_MODE" LANG_MODE="$LANG_MODE" ISO_LOCALE="$ISO_LOCALE" ISO_LANGUAGE="$ISO_LANGUAGE" ISO_LANG_PKG="$ISO_LANG_PKG" KEYBOARD_LAYOUT="$KEYBOARD_LAYOUT" /bin/bash -s <<'CHROOT_ROOT_SETUP'
 set -euo pipefail
 export HOME=/root
 export DEBIAN_FRONTEND=noninteractive
@@ -413,12 +439,12 @@ LANG=$ISO_LOCALE
 LANGUAGE=$ISO_LANGUAGE
 EOF
 
-# Layout de teclado ABNT2 (pt-BR) a nível de sistema — afeta a tela de
-# login do SDDM e qualquer TTY, não só a sessão do KDE (que já pega o
-# layout via kxkbrc no skel).
-cat > /etc/default/keyboard << 'EOF'
+# Layout de teclado escolhido pelo usuário (padrão: ABNT2/br) a nível de
+# sistema — afeta a tela de login do SDDM e qualquer TTY, não só a sessão
+# do KDE (que já pega o layout via kxkbrc no skel, ajustado à parte).
+cat > /etc/default/keyboard << EOF
 XKBMODEL="pc105"
-XKBLAYOUT="br"
+XKBLAYOUT="$KEYBOARD_LAYOUT"
 XKBVARIANT=""
 XKBOPTIONS=""
 
@@ -664,7 +690,7 @@ sudo chroot squashfs-root chown -R "$LIVE_USER:$LIVE_USER" "/home/$LIVE_USER" ||
 
 msg ">>> [7/8] Rodando finalização (root) dentro do chroot..." ">>> [7/8] Running finalization (root) inside chroot..."
 
-sudo chroot squashfs-root /usr/bin/env LIVE_USER="$LIVE_USER" LANG_MODE="$LANG_MODE" ISO_LOCALE="$ISO_LOCALE" ISO_LANGUAGE="$ISO_LANGUAGE" /bin/bash -s <<'CHROOT_ROOT_FINISH'
+sudo chroot squashfs-root /usr/bin/env LIVE_USER="$LIVE_USER" LANG_MODE="$LANG_MODE" ISO_LOCALE="$ISO_LOCALE" ISO_LANGUAGE="$ISO_LANGUAGE" TIMEZONE="$TIMEZONE" /bin/bash -s <<'CHROOT_ROOT_FINISH'
 set -euo pipefail
 BUILD_LANG_MODE="$LANG_MODE"
 export DEBIAN_FRONTEND=noninteractive
@@ -678,9 +704,9 @@ msg() {
 
 # Timezone
 rm -rf /etc/localtime
-ln -sf /usr/share/zoneinfo/America/Sao_Paulo /etc/localtime
+ln -sf "/usr/share/zoneinfo/$TIMEZONE" /etc/localtime
 
-cat > /etc/init.d/timezone.sh << 'EOF'
+cat > /etc/init.d/timezone.sh << EOF
 #! /bin/bash
 ### BEGIN INIT INFO
 # Provides:          timezone
@@ -691,11 +717,11 @@ cat > /etc/init.d/timezone.sh << 'EOF'
 # Short-Description: timezone
 # Description: timezone
 ### END INIT INFO
-case "$1" in
+case "\$1" in
   start)
     echo "Starting timezone..."
-    ln -sf /usr/share/zoneinfo/America/Sao_Paulo /etc/localtime
-    timedatectl set-timezone America/Sao_Paulo
+    ln -sf /usr/share/zoneinfo/$TIMEZONE /etc/localtime
+    timedatectl set-timezone $TIMEZONE
     ;;
   stop)
     echo "Stopping timezone..."

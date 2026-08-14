@@ -8,7 +8,7 @@
 # build-iso.sh antes do usuário live ser criado — assim o adduser já copia
 # tudo isso automaticamente para o home do novo usuário.
 #
-# Uso: bash customize-skel.sh <caminho-do-squashfs-root> <live-user>
+# Uso: bash customize-skel.sh <caminho-do-squashfs-root> <live-user> [layout-teclado] [iso-locale]
 #
 # Para alterar a customização: edite os arquivos dentro de skel/ neste
 # repositório (não precisa mexer no build-iso.sh).
@@ -29,6 +29,9 @@ msg() {
 
 SQUASHFS_ROOT="${1:?$(msg "Uso: customize-skel.sh <squashfs-root> <live-user>" "Usage: customize-skel.sh <squashfs-root> <live-user>")}"
 LIVE_USER="${2:?$(msg "Uso: customize-skel.sh <squashfs-root> <live-user>" "Usage: customize-skel.sh <squashfs-root> <live-user>")}"
+KEYBOARD_LAYOUT="${3:-br}"
+ISO_LOCALE="${4:-en_US.UTF-8}"
+ISO_LANG_SHORT="${ISO_LOCALE%.UTF-8}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKEL_SRC="$SCRIPT_DIR/skel"
 SKEL_DST="$SQUASHFS_ROOT/etc/skel"
@@ -47,5 +50,25 @@ sudo chown -R root:root "$SKEL_DST"
 # o desenvolvimento). Troca para o usuário live escolhido nesta build, em
 # qualquer arquivo de texto que referencie /home/ufsc (ex: user-places.xbel).
 sudo grep -rlZ "ufsc" "$SKEL_DST" 2>/dev/null | sudo xargs -0 -r sed -i "s/ufsc/$LIVE_USER/g"
+
+# kxkbrc traz o layout de teclado da sessão KDE (o skel/ foi capturado com
+# "br"). Ajusta para o layout escolhido nesta build, se for diferente.
+if [[ -f "$SKEL_DST/.config/kxkbrc" ]]; then
+    sudo sed -i "s/^LayoutList=.*/LayoutList=$KEYBOARD_LAYOUT/" "$SKEL_DST/.config/kxkbrc"
+fi
+
+# user-dirs.locale controla em que idioma o xdg-user-dirs-update nomeia as
+# pastas do home (Desktop/Área de Trabalho, Documents/Documentos etc) na
+# primeira sessão do usuário. Segue o idioma escolhido para a ISO.
+if [[ -f "$SKEL_DST/.config/user-dirs.locale" ]]; then
+    echo "$ISO_LANG_SHORT" | sudo tee "$SKEL_DST/.config/user-dirs.locale" > /dev/null
+fi
+
+# Thonny (IDE usada nas aulas de Python) também segue o idioma da ISO.
+# Best-effort: se o Thonny não tiver tradução para o idioma escolhido, ele
+# cai para inglês sozinho.
+if [[ -f "$SKEL_DST/.config/Thonny/configuration.ini" ]]; then
+    sudo sed -i "s/^language = .*/language = $ISO_LANG_SHORT/" "$SKEL_DST/.config/Thonny/configuration.ini"
+fi
 
 msg ">>> /etc/skel atualizado." ">>> /etc/skel updated."
