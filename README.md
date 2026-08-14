@@ -109,9 +109,11 @@ is needed — `bash build-iso.sh` is enough.)
 You'll be asked for:
 1. The live user's **username** and **password**.
 2. Whether the ISO should be **live-only** or **live + installer**.
-3. The ISO's **system language** (default: English).
-4. The **keyboard layout** (default: ABNT2/`br`).
-5. The **timezone** (default: `America/Sao_Paulo`).
+3. The **output ISO filename** (default: `DebianAula.iso`, or
+   `DebianAulaInstall.iso` if you chose live + installer).
+4. The ISO's **system language** (default: English).
+5. The **keyboard layout** (default: ABNT2/`br`).
+6. The **timezone** (default: `America/Sao_Paulo`).
 
 The build then runs mostly unattended. It pauses twice for interaction:
 
@@ -124,10 +126,10 @@ The build then runs mostly unattended. It pauses twice for interaction:
   the ISO is finalized. Close the apps you opened normally, then close the
   Xephyr window (or type `exit`) to resume the automated build.
 
-The finished ISO is written to the repository directory as `DebianAula.iso`
-(live-only) or `DebianAulaInstall.iso` (live + installer) — named after the
-mode chosen at step 2, so a Calamares-capable build is never confused with
-a plain live one already on disk.
+The finished ISO is written to the repository directory under the filename
+you chose at step 3 (`DebianAula.iso`/`DebianAulaInstall.iso` by default,
+depending on the mode from step 2 — so a Calamares-capable build is never
+confused with a plain live one already on disk).
 A full build (fresh clone, nothing cached) typically takes a while — expect
 it to run for an hour or more, mostly unattended, depending on your internet
 connection and hardware.

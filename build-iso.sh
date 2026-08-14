@@ -59,6 +59,19 @@ else
 fi
 msg ">>> Modo: $ISO_MODE" ">>> Mode: $ISO_MODE"
 
+# Default depende do modo, pra uma build "live + instalador" nunca ser
+# confundida com uma "somente live" já existente no diretório — mas o
+# usuário pode sobrescrever com qualquer nome.
+if [[ "$ISO_MODE" == "install" ]]; then
+    ISO_OUTPUT_DEFAULT="DebianAulaInstall.iso"
+else
+    ISO_OUTPUT_DEFAULT="DebianAula.iso"
+fi
+read -rp "$(mp "Nome do arquivo ISO gerado [$ISO_OUTPUT_DEFAULT]: " "Generated ISO filename [$ISO_OUTPUT_DEFAULT]: ")" ISO_OUTPUT
+ISO_OUTPUT="${ISO_OUTPUT:-$ISO_OUTPUT_DEFAULT}"
+[[ "$ISO_OUTPUT" == *.iso ]] || ISO_OUTPUT="${ISO_OUTPUT}.iso"
+msg ">>> Arquivo de saída: $ISO_OUTPUT" ">>> Output file: $ISO_OUTPUT"
+
 echo
 msg "Idioma do sistema dentro da ISO gerada (menus, LibreOffice, etc)." "System language inside the generated ISO (menus, LibreOffice, etc)."
 msg "Principais opções — digite o código:" "Main options — type the code:"
@@ -842,14 +855,6 @@ sudo mksquashfs squashfs-root iso/live/filesystem.squashfs -comp xz -noappend
 
 msg ">>> Gerando checksums..." ">>> Generating checksums..."
 ( cd iso && sudo rm -f md5sum.txt && find . -type f -not -name md5sum.txt -print0 | sudo xargs -0 md5sum | sudo tee md5sum.txt > /dev/null )
-
-# Nome do arquivo final reflete o modo escolhido no início — assim uma ISO
-# "live + instalador" nunca é confundida com uma "somente live" já baixada.
-if [[ "$ISO_MODE" == "install" ]]; then
-    ISO_OUTPUT="DebianAulaInstall.iso"
-else
-    ISO_OUTPUT="DebianAula.iso"
-fi
 
 msg ">>> Gerando ISO final..." ">>> Generating final ISO..."
 xorriso -as mkisofs -R -r -J -joliet-long -l -cache-inodes -iso-level 3 \
