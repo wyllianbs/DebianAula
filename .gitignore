@@ -5,10 +5,10 @@
 !*/
 
 # Allowed files
-!/skel
-!/skel/**
-!/build-iso.sh
-!/customize-home.sh
-!/customize-skel.sh
-!/README.md
+!/github/skel
+!/github/skel/**
+!/github/build-iso.sh
+!/github/customize-home.sh
+!/github/customize-skel.sh
+!/github/README.md
 !/.gitignore
