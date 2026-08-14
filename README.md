@@ -182,23 +182,36 @@ sudo dd if=DebianAula.iso of=/dev/sdX bs=4M status=progress oflag=sync
 
 Requires [QEMU for Windows](https://www.qemu.org/download/#windows) and
 Hyper-V/WHPX enabled (`-accel whpx` — KVM is Linux-only). Run from
-PowerShell or cmd in the folder with the ISO:
+PowerShell or cmd in the folder with the ISO. Same two options as Linux,
+just with `-accel whpx` instead of `-enable-kvm`:
 
 ```bat
+:: Live session only, no persistence
+qemu-system-x86_64 -accel whpx -cpu host -m 8G -vga virtio -usb ^
+    -drive format=raw,file=DebianAula.iso
+```
+
+```bat
+:: With a virtual disk, to test the Calamares installer (DebianAulaInstall.iso)
 qemu-img create -f qcow2 DebianAula.qcow2 50G
 qemu-system-x86_64 -accel whpx -cpu host -m 8G -vga virtio -usb ^
     -hda DebianAula.qcow2 -cdrom DebianAulaInstall.iso -boot d
 ```
 
-For a live-only test (no virtual disk), drop `-hda DebianAula.qcow2` and
-`-boot d`, and use `-cdrom DebianAula.iso` alone.
-
 #### macOS
 
 Install QEMU via [Homebrew](https://brew.sh) (`brew install qemu`) and use
-`-accel hvf` (Apple's hypervisor framework — KVM/WHPX don't apply here):
+`-accel hvf` (Apple's hypervisor framework — KVM/WHPX don't apply here).
+Same two options as Linux, just with `-accel hvf` instead of `-enable-kvm`:
 
 ```bash
+# Live session only, no persistence
+qemu-system-x86_64 -accel hvf -cpu host -m 8G -vga virtio -usb \
+    -drive format=raw,file=DebianAula.iso
+```
+
+```bash
+# With a virtual disk, to test the Calamares installer (DebianAulaInstall.iso)
 qemu-img create -f qcow2 DebianAula.qcow2 50G
 qemu-system-x86_64 -accel hvf -cpu host -m 8G -vga virtio -usb \
     -hda DebianAula.qcow2 -cdrom DebianAulaInstall.iso -boot d
