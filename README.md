@@ -23,8 +23,8 @@ distraction-free environment out of the box.
 - **Curated app set**: Firefox (Mozilla repo), VS Code, Neovim configured with
   [LazyVim](https://github.com/wyllianbs/LazyVim-Setup), Kate with
   [kate-quickrun](https://github.com/wyllianbs/kate-quickrun), Thonny, LibreOffice
-  (pt-BR only, to keep the image lean), Konsole with Catppuccin color schemes,
-  VLC, Audacity/Audacious, and more.
+  (only the language pack you chose at build time, to keep the image lean),
+  Konsole with Catppuccin color schemes, VLC, Audacity/Audacious, and more.
 - **Sane KDE Plasma defaults, applied without user interaction**:
   - Taskbar with Konsole pinned, Discover not cluttering it
   - Kickoff menu favorites curated (browser, file manager, terminal, editors)
@@ -32,7 +32,7 @@ distraction-free environment out of the box.
   - Notification area with the relevant items always visible
   - Desktop folder correctly pointed at `~/Desktop` (not `$HOME`)
   - Slideshow wallpaper (60 min, random)
-  - ABNT2 (pt-BR) keyboard layout, system-wide
+  - Keyboard layout, system-wide (default: ABNT2/`br`, configurable at build time)
   - Screen lock disabled, Bluetooth disabled
   - Custom splash screen
 - **Firefox configured via `policies.json`** (not by shipping a live browser
@@ -41,8 +41,14 @@ distraction-free environment out of the box.
   save downloads", private browsing by default, password manager disabled,
   and a curated search engine list.
 - **Bilingual build tooling**: `build-iso.sh` prints its prompts and progress
-  messages in Portuguese or English, auto-detected from the host's `$LANG` —
-  the generated ISO's language (pt-BR) is unaffected by this.
+  messages in Portuguese or English, auto-detected from the host's `$LANG`.
+  This is independent from the generated ISO's own system language, which
+  you choose separately during the build (see below) — English by default.
+- **Configurable ISO language, keyboard, and timezone**: pick the live
+  system's language (`en_US`, `pt_BR`, `es_ES`, `fr_FR`, `de_DE`, `it_IT`),
+  keyboard layout (`br`, `us`, `es`, `fr`, `de`, `it`), and timezone at build
+  time. Defaults to English / ABNT2 (`br`) / `America/Sao_Paulo` if you just
+  press Enter.
 - **A disk-space reservation trick**: a 1GB placeholder file is created during
   the build and removed by an init script on first real boot, guaranteeing
   that much free space on the live overlay regardless of the target media.
@@ -52,7 +58,7 @@ distraction-free environment out of the box.
 | File | Purpose |
 |---|---|
 | `build-iso.sh` | Main entry point. Downloads/reuses the base Debian Live ISO, extracts it, chroots in to install packages and apply system-wide configuration, runs the interactive customization step, then repacks the final ISO. |
-| `customize-skel.sh` | Copies `skel/` into the chroot's `/etc/skel`, so the live user's home directory is pre-populated the moment it's created by `adduser` — no manual setup needed. |
+| `customize-skel.sh` | Copies `skel/` into the chroot's `/etc/skel`, so the live user's home directory is pre-populated the moment it's created by `adduser` — no manual setup needed. Also patches the keyboard layout and language into the copied config (KDE's `kxkbrc`, `user-dirs.locale`, Thonny) to match the choices made in `build-iso.sh`. |
 | `customize-home.sh` | Runs automatically (as the live user, before the interactive step) to install things that need real commands rather than static config files: npm globals, LazyVim, kate-quickrun (always fetching the *latest* GitHub release), conky. |
 | `skel/` | The actual dotfiles/config template applied to every new build: Dolphin, Konsole (+ Catppuccin color schemes), Kate, KDE global settings (theme, panel, keyboard, screen lock, splash, wallpaper), VS Code, Thonny. Edit files here directly to change what ships by default — no need to touch `build-iso.sh`. |
 
@@ -99,6 +105,9 @@ is needed — `bash build-iso.sh` is enough.)
 You'll be asked for:
 1. The live user's **username** and **password**.
 2. Whether the ISO should be **live-only** or **live + installer**.
+3. The ISO's **system language** (default: English).
+4. The **keyboard layout** (default: ABNT2/`br`).
+5. The **timezone** (default: `America/Sao_Paulo`).
 
 The build then runs mostly unattended. It pauses twice for interaction:
 
