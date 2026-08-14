@@ -196,7 +196,6 @@ DialogWidth=720
 speedUnit=9001
 
 [Containments][35][Applets][54][Configuration][WeatherStation]
-source=bbcukmet|weather|Florianópolis, Brazil, BR|3463237
 
 [Containments][35][ConfigDialog]
 DialogHeight=703
