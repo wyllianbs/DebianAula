@@ -12,8 +12,12 @@ distraction-free environment out of the box.
 > **Download**: a pre-built ISO is available on the
 > [Internet Archive](https://archive.org/details/DebianAula)
 > ([direct download](https://archive.org/download/DebianAula/DebianAula.iso))
-> — no build required. Prefer to build it yourself (and audit exactly what
-> goes into the image)? See [Installation](#installation) below.
+> — no build required. This pre-built image was generated with the
+> **pt_BR / ABNT2 / America/Sao_Paulo** options and its own set of manual
+> Desktop Environment tweaks made during the interactive step — it does
+> **not** reflect the `en_US` / `br` / no-timezone defaults described below.
+> Want a different language/keyboard/timezone, or to audit exactly what
+> goes into the image? Build it yourself — see [Installation](#installation).
 
 ## What you get
 
