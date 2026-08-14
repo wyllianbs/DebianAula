@@ -843,6 +843,14 @@ sudo mksquashfs squashfs-root iso/live/filesystem.squashfs -comp xz -noappend
 msg ">>> Gerando checksums..." ">>> Generating checksums..."
 ( cd iso && sudo rm -f md5sum.txt && find . -type f -not -name md5sum.txt -print0 | sudo xargs -0 md5sum | sudo tee md5sum.txt > /dev/null )
 
+# Nome do arquivo final reflete o modo escolhido no início — assim uma ISO
+# "live + instalador" nunca é confundida com uma "somente live" já baixada.
+if [[ "$ISO_MODE" == "install" ]]; then
+    ISO_OUTPUT="DebianAulaInstall.iso"
+else
+    ISO_OUTPUT="DebianAula.iso"
+fi
+
 msg ">>> Gerando ISO final..." ">>> Generating final ISO..."
 xorriso -as mkisofs -R -r -J -joliet-long -l -cache-inodes -iso-level 3 \
     -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin -partition_offset 16 \
@@ -852,8 +860,8 @@ xorriso -as mkisofs -R -r -J -joliet-long -l -cache-inodes -iso-level 3 \
     -no-emul-boot -boot-load-size 4 -boot-info-table \
     -eltorito-alt-boot -e boot/grub/efi.img -no-emul-boot \
     -isohybrid-gpt-basdat -isohybrid-apm-hfsplus \
-    -o DebianAula.iso iso
+    -o "$ISO_OUTPUT" iso
 
 echo
-msg ">>> ISO gerada em: $WORKDIR/DebianAula.iso" ">>> ISO generated at: $WORKDIR/DebianAula.iso"
+msg ">>> ISO gerada em: $WORKDIR/$ISO_OUTPUT" ">>> ISO generated at: $WORKDIR/$ISO_OUTPUT"
 msg ">>> Concluído!" ">>> Done!"

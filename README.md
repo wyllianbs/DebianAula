@@ -124,7 +124,10 @@ The build then runs mostly unattended. It pauses twice for interaction:
   the ISO is finalized. Close the apps you opened normally, then close the
   Xephyr window (or type `exit`) to resume the automated build.
 
-The finished ISO is written to `DebianAula.iso` in the repository directory.
+The finished ISO is written to the repository directory as `DebianAula.iso`
+(live-only) or `DebianAulaInstall.iso` (live + installer) — named after the
+mode chosen at step 2, so a Calamares-capable build is never confused with
+a plain live one already on disk.
 A full build (fresh clone, nothing cached) typically takes a while — expect
 it to run for an hour or more, mostly unattended, depending on your internet
 connection and hardware.
@@ -158,13 +161,14 @@ qemu-system-x86_64 \
 ```
 
 ```bash
-# With a virtual disk, to test the Calamares installer (live + installer builds)
+# With a virtual disk, to test the Calamares installer (build with the
+# live + installer option, e.g. saved as DebianAulaInstall.iso)
 qemu-img create -f qcow2 DebianAula.qcow2 50G
 qemu-system-x86_64 \
     -enable-kvm -cpu host \
     -m 8G -vga virtio -usb \
     -device intel-hda -device hda-duplex \
-    -hda DebianAula.qcow2 -cdrom DebianAula.iso -boot d
+    -hda DebianAula.qcow2 -cdrom DebianAulaInstall.iso -boot d
 ```
 
 Or write the ISO to a USB drive directly (⚠️ this overwrites the target
@@ -183,7 +187,7 @@ PowerShell or cmd in the folder with the ISO:
 ```bat
 qemu-img create -f qcow2 DebianAula.qcow2 50G
 qemu-system-x86_64 -accel whpx -cpu host -m 8G -vga virtio -usb ^
-    -hda DebianAula.qcow2 -cdrom DebianAula.iso -boot d
+    -hda DebianAula.qcow2 -cdrom DebianAulaInstall.iso -boot d
 ```
 
 For a live-only test (no virtual disk), drop `-hda DebianAula.qcow2` and
@@ -197,7 +201,7 @@ Install QEMU via [Homebrew](https://brew.sh) (`brew install qemu`) and use
 ```bash
 qemu-img create -f qcow2 DebianAula.qcow2 50G
 qemu-system-x86_64 -accel hvf -cpu host -m 8G -vga virtio -usb \
-    -hda DebianAula.qcow2 -cdrom DebianAula.iso -boot d
+    -hda DebianAula.qcow2 -cdrom DebianAulaInstall.iso -boot d
 ```
 
 > On **Apple Silicon (M1/M2/M3/...)** `hvf` only accelerates same-architecture
