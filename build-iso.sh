@@ -157,15 +157,37 @@ else
     msg "    ISO local já é a versão mais recente ($LOCAL_ISO)." "    Local ISO is already the latest version ($LOCAL_ISO)."
 fi
 
+# Detecta se 'iso'/'squashfs-root' (se existirem) foram construídos num modo
+# ISO_MODE diferente do escolhido agora (ex: eram "live-only" e agora é
+# "install"). Reaproveitar entre modos diferentes não quebra o build — os
+# pacotes do Calamares/instalador são instalados/purgados a cada execução —
+# mas o purge do modo "live" não remove as dependências do instalador
+# (grub-efi-amd64-bin, parted, etc.), então trocar para "live" reaproveitando
+# um 'squashfs-root' que já foi "install" pode deixar a ISO com pacotes
+# residuais (maior do que deveria).
+MODE_MARKER="$WORKDIR/.debianaula-last-mode"
+PREV_ISO_MODE=""
+[[ -f "$MODE_MARKER" ]] && PREV_ISO_MODE="$(cat "$MODE_MARKER" 2>/dev/null || true)"
+MODE_MISMATCH=""
+if [[ -n "$PREV_ISO_MODE" && "$PREV_ISO_MODE" != "$ISO_MODE" && ( -d "squashfs-root" || -d "iso" ) ]]; then
+    MODE_MISMATCH="1"
+fi
+
 FULL_UPDATE=""
-if [[ -d "squashfs-root" || -d "iso" ]]; then
+if [[ -n "$MODE_MISMATCH" ]]; then
+    echo
+    msg "!!! AVISO: 'iso'/'squashfs-root' foram construídos no modo '$PREV_ISO_MODE', mas agora você escolheu '$ISO_MODE'." "!!! WARNING: 'iso'/'squashfs-root' were built in '$PREV_ISO_MODE' mode, but you chose '$ISO_MODE' this time."
+    msg "    Reaproveitar assim não quebra o build, mas pode deixar pacotes do instalador residuais na ISO (maior do que precisa)." "    Reusing them like this won't break the build, but may leave leftover installer packages in the ISO (larger than it needs to be)."
+    read -rp "$(mp "Apagar tudo e reconstruir do zero neste modo? [S/n]: " "Delete everything and rebuild from scratch in this mode? [Y/n]: ")" FULL_UPDATE
+    FULL_UPDATE="${FULL_UPDATE:-s}"
+elif [[ -d "squashfs-root" || -d "iso" ]]; then
     if [[ -n "$REMOTE_ISO" && -n "$LOCAL_ISO" && "$REMOTE_ISO" != "$LOCAL_ISO" ]]; then
         read -rp "$(mp "Há uma ISO base mais nova. Apagar tudo e reconstruir do zero? [s/N]: " "A newer base ISO is available. Delete everything and rebuild from scratch? [y/N]: ")" FULL_UPDATE
     else
         read -rp "$(mp "ISO base já é a mais recente. Ainda assim, apagar tudo e reconstruir do zero (perde as customizações já feitas)? [s/N]: " "Base ISO is already the latest. Still delete everything and rebuild from scratch (loses customizations already made)? [y/N]: ")" FULL_UPDATE
     fi
-    FULL_UPDATE="${FULL_UPDATE,,}"
 fi
+FULL_UPDATE="${FULL_UPDATE,,}"
 
 if [[ "$FULL_UPDATE" == "s" || "$FULL_UPDATE" == "sim" || "$FULL_UPDATE" == "y" || "$FULL_UPDATE" == "yes" ]]; then
     TO_REMOVE=()
@@ -204,6 +226,8 @@ if [[ "$FULL_UPDATE" == "s" || "$FULL_UPDATE" == "sim" || "$FULL_UPDATE" == "y" 
         fi
     fi
 fi
+
+echo "$ISO_MODE" > "$MODE_MARKER"
 
 # ============================================================ #
 # 1. DOWNLOAD DO ISO
