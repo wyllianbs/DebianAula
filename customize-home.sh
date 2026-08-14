@@ -12,16 +12,27 @@
 
 set -uo pipefail   # sem -e: um passo de customização falhar não deve abortar o build
 
+# Bilíngue (pt/en): segue o $LANG_MODE herdado do build-iso.sh; se não vier
+# definido, detecta pelo $LANG/$LANGUAGE do host, com fallback padrão en_US.
+if [[ -z "${LANG_MODE:-}" ]]; then
+    LANG_PROBE="${LANG:-${LANGUAGE:-en}}"
+    if [[ "$LANG_PROBE" == pt* ]]; then LANG_MODE="pt"; else LANG_MODE="en"; fi
+fi
+
+msg() {
+    if [[ "$LANG_MODE" == "pt" ]]; then printf '%s\n' "$1"; else printf '%s\n' "$2"; fi
+}
+
 cd "$HOME" || exit 1
 
-echo ">>> [customize-home] Desabilitando KWallet..."
+msg ">>> [customize-home] Desabilitando KWallet..." ">>> [customize-home] Disabling KWallet..."
 mkdir -p ~/.config
 cat > ~/.config/kwalletrc << 'EOF'
 [Wallet]
 Enabled=false
 EOF
 
-echo ">>> [customize-home] Configurando conky..."
+msg ">>> [customize-home] Configurando conky..." ">>> [customize-home] Configuring conky..."
 rm -rf ~/.conky
 mkdir -p ~/.conky
 
@@ -158,12 +169,12 @@ ${tcp_portmon 1 65535 rhost 9} ${alignr} ${tcp_portmon 1 65535 lport 9}
 ${hr 1}]]
 EOF
 
-echo ">>> [customize-home] npm install global (prompt-sync, readline-sync, http-server)..."
+msg ">>> [customize-home] npm install global (prompt-sync, readline-sync, http-server)..." ">>> [customize-home] npm global install (prompt-sync, readline-sync, http-server)..."
 # Global (não em $HOME) para não sujar a Área de trabalho com node_modules/
 # package.json — o folder view do Plasma mostra o conteúdo de $HOME.
 sudo npm i -g prompt-sync readline-sync http-server
 
-echo ">>> [customize-home] LazyVim..."
+msg ">>> [customize-home] LazyVim..." ">>> [customize-home] LazyVim..."
 rm -rf ~/LazyVim-Setup
 git clone https://github.com/wyllianbs/LazyVim-Setup.git ~/LazyVim-Setup \
     && (
@@ -187,20 +198,20 @@ if command -v nvim >/dev/null; then
     nvim --headless "+MasonUpdate" +qa
     nvim --headless "+TSUpdate" +qa
 else
-    echo ">>> [customize-home] AVISO: 'nvim' não encontrado no PATH — pulando sync do LazyVim/Mason/Treesitter."
+    msg ">>> [customize-home] AVISO: 'nvim' não encontrado no PATH — pulando sync do LazyVim/Mason/Treesitter." ">>> [customize-home] WARNING: 'nvim' not found on PATH — skipping LazyVim/Mason/Treesitter sync."
 fi
 
-echo ">>> [customize-home] kate-quickrun..."
+msg ">>> [customize-home] kate-quickrun..." ">>> [customize-home] kate-quickrun..."
 KQ_URL=$(curl -fsSL https://api.github.com/repos/wyllianbs/kate-quickrun/releases/latest \
     | grep '"browser_download_url"' | grep '\.deb"' | head -1 | cut -d'"' -f4)
 if [[ -n "$KQ_URL" ]]; then
     wget -c -O ~/kate-quickrun.deb "$KQ_URL"
     sudo dpkg -i ~/kate-quickrun.deb || sudo apt-get install -f -y
 else
-    echo ">>> [customize-home] AVISO: não encontrei o .deb do kate-quickrun na release mais recente — pulando."
+    msg ">>> [customize-home] AVISO: não encontrei o .deb do kate-quickrun na release mais recente — pulando." ">>> [customize-home] WARNING: could not find the kate-quickrun .deb in the latest release — skipping."
 fi
 
-echo ">>> [customize-home] Limpando arquivos temporários..."
+msg ">>> [customize-home] Limpando arquivos temporários..." ">>> [customize-home] Cleaning up temporary files..."
 rm -rf ~/kate-quickrun.deb ~/LazyVim-Setup
 
-echo ">>> [customize-home] Concluído."
+msg ">>> [customize-home] Concluído." ">>> [customize-home] Done."

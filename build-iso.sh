@@ -22,8 +22,10 @@ BASE_URL="https://cdimage.debian.org/debian-cd/current-live/amd64/iso-hybrid"
 LANG_PROBE="${LANG:-${LANGUAGE:-en}}"
 if [[ "$LANG_PROBE" == pt* ]]; then
     LANG_MODE="pt"
+    BUILD_LOCALE="pt_BR.UTF-8"
 else
     LANG_MODE="en"
+    BUILD_LOCALE="en_US.UTF-8"
 fi
 
 # msg "texto em pt" "text in en"  -> imprime com \n
@@ -246,7 +248,7 @@ trap cleanup EXIT
 # Popula /etc/skel com as customizações de usuário (Dolphin, Firefox,
 # Konsole, Kate, painel/systray/relógio). Precisa rodar ANTES do adduser
 # (etapa 5), para que o novo usuário já nasça com tudo aplicado.
-bash "$WORKDIR/customize-skel.sh" squashfs-root "$LIVE_USER"
+LANG_MODE="$LANG_MODE" bash "$WORKDIR/customize-skel.sh" squashfs-root "$LIVE_USER"
 
 # ============================================================ #
 # 5. ETAPA ROOT DENTRO DO CHROOT (automática)
@@ -566,7 +568,7 @@ echo
 msg ">>> [6/8] Customizando o home de '$LIVE_USER' (automático: conky, LazyVim, kate-quickrun, etc)..." ">>> [6/8] Customizing the home directory of '$LIVE_USER' (automatic: conky, LazyVim, kate-quickrun, etc)..."
 sudo cp "$WORKDIR/customize-home.sh" squashfs-root/tmp/customize-home.sh
 sudo chmod +x squashfs-root/tmp/customize-home.sh
-sudo chroot squashfs-root su - "$LIVE_USER" -c "bash /tmp/customize-home.sh"
+sudo chroot squashfs-root su - "$LIVE_USER" -c "LANG_MODE=$LANG_MODE bash /tmp/customize-home.sh"
 sudo rm -f squashfs-root/tmp/customize-home.sh
 
 echo
@@ -600,7 +602,7 @@ Xephyr :2 -screen 1280x800 -resizeable -ac >/tmp/xephyr.log 2>&1 &
 XEPHYR_PID=$!
 sleep 1
 
-sudo chroot squashfs-root su - "$LIVE_USER" -c "export DISPLAY=:2; export LIBGL_ALWAYS_SOFTWARE=1; nohup startplasma-x11 >/tmp/plasma-session.log 2>&1 & echo \$! > /tmp/plasma-session.pid; bash; kill \$(cat /tmp/plasma-session.pid) 2>/dev/null; rm -f /tmp/plasma-session.pid /tmp/plasma-session.log"
+sudo chroot squashfs-root su - "$LIVE_USER" -c "export LANG=$BUILD_LOCALE LC_ALL=$BUILD_LOCALE; export DISPLAY=:2; export LIBGL_ALWAYS_SOFTWARE=1; nohup startplasma-x11 >/tmp/plasma-session.log 2>&1 & echo \$! > /tmp/plasma-session.pid; bash; kill \$(cat /tmp/plasma-session.pid) 2>/dev/null; rm -f /tmp/plasma-session.pid /tmp/plasma-session.log"
 
 kill "$XEPHYR_PID" 2>/dev/null || true
 
