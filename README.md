@@ -137,13 +137,19 @@ given below per host OS. Two ways to boot:
 - **Live session only** — boots straight off the ISO, RAM-based, nothing
   written to disk. Anything you do is lost when the VM shuts down. Good
   for a quick sanity check.
-- **With a virtual disk** — attaches a `qcow2` disk alongside the ISO.
-  By itself this does **not** make the live session persistent (Debian
-  Live's squashfs still runs from RAM either way). It's only useful if
-  you built with the **live + installer** option (`[2]` at the ISO-mode
-  prompt): boot the VM, run Calamares, and install onto that virtual
-  disk. From then on, boot with just `-hda` (drop `-cdrom`/`-boot d`) to
-  start the real installed system — that copy is persistent.
+- **With a virtual disk, installed via Calamares** — attaches a `qcow2`
+  disk alongside the ISO. By itself this does **not** make the live
+  session persistent (Debian Live's squashfs still runs from RAM either
+  way). It's only useful if you built with the **live + installer**
+  option (`[2]` at the ISO-mode prompt): boot the VM, run Calamares, and
+  install onto that virtual disk. From then on, boot with just `-hda`
+  (drop `-cdrom`/`-boot d`) to start the real installed system — that
+  copy is persistent.
+- **With `live-boot` persistence** — no installer needed, works with
+  *any* build (live-only included). A labeled partition holds your
+  changes, and the live session overlays it on top of the read-only
+  squashfs on every boot. See [Persistent live session](#persistent-live-session-no-install)
+  below.
 
 #### Linux
 
@@ -205,6 +211,64 @@ qemu-system-x86_64 -accel hvf -cpu host -m 8G -vga virtio -usb \
 > won't work either in that case; drop it (or try `-cpu max`). For a
 > smoother experience on Apple Silicon, consider [UTM](https://mac.getutm.app/)
 > instead, though it has the same underlying x86-on-ARM emulation cost.
+
+#### Persistent live session (no install)
+
+The ISO uses `live-boot` (`boot=live` in `isolinux/live.cfg`), which has
+its own persistence mechanism: a disk partition labeled `persistence`
+holding a `persistence.conf` file. Any build works with this — live-only
+included, no Calamares needed.
+
+1. Create a second, separate virtual disk for persistence (don't reuse
+   the one from the Calamares example above) and attach it alongside the
+   ISO — adjust `-enable-kvm`/`-accel` per your host OS as shown earlier:
+
+   ```bash
+   qemu-img create -f qcow2 DebianAula-persistence.qcow2 8G
+
+   qemu-system-x86_64 \
+       -enable-kvm -cpu host -m 8G -vga virtio -usb \
+       -drive format=raw,file=DebianAula.iso \
+       -drive file=DebianAula-persistence.qcow2,format=qcow2
+   ```
+
+2. Boot the live session normally, open a terminal, and find the new
+   disk (it won't have a filesystem yet, so it's easy to spot):
+
+   ```bash
+   lsblk
+   ```
+
+3. Format it with the `persistence` label and write the config file that
+   tells `live-boot` to overlay the whole filesystem (use `sdX` — the
+   device `lsblk` showed you, e.g. `sdb`):
+
+   ```bash
+   sudo mkfs.ext4 -L persistence /dev/sdX
+   sudo mkdir -p /mnt/persist
+   sudo mount /dev/sdX /mnt/persist
+   echo "/ union" | sudo tee /mnt/persist/persistence.conf
+   sudo umount /mnt/persist
+   sudo poweroff
+   ```
+
+4. Boot the same QEMU command again. At the `DebianAula` boot menu, press
+   **Tab** (isolinux) before it auto-boots, and append `persistence` to
+   the line:
+
+   ```
+   boot=live hostname=DebianAula components quiet splash overlay-size=50% video=1440x900@60 persistence
+   ```
+
+   Press Enter. From now on, changes to `/` (installed packages, files,
+   settings — anything, since `persistence.conf` says `/ union`) are
+   written to `DebianAula-persistence.qcow2` and survive reboots, as long
+   as you keep adding `persistence` to the boot line and keep reusing the
+   same virtual disk.
+
+   > To persist only specific paths instead of everything (smaller,
+   > faster overlay), use lines like `/home union` and `/etc union` in
+   > `persistence.conf` instead of `/ union`.
 
 ## Screenshots
 
