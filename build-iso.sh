@@ -59,6 +59,37 @@ else
 fi
 msg ">>> Modo: $ISO_MODE" ">>> Mode: $ISO_MODE"
 
+echo
+msg "Idioma do sistema dentro da ISO gerada (menus, LibreOffice, etc)." "System language inside the generated ISO (menus, LibreOffice, etc)."
+msg "Principais opções — digite o código:" "Main options — type the code:"
+msg "  en_US — Inglês (padrão)" "  en_US — English (default)"
+msg "  pt_BR — Português do Brasil" "  pt_BR — Brazilian Portuguese"
+msg "  es_ES — Espanhol" "  es_ES — Spanish"
+msg "  fr_FR — Francês" "  fr_FR — French"
+msg "  de_DE — Alemão" "  de_DE — German"
+msg "  it_IT — Italiano" "  it_IT — Italian"
+read -rp "$(mp "Código [en_US]: " "Code [en_US]: ")" ISO_LOCALE_CHOICE
+ISO_LOCALE_CHOICE="${ISO_LOCALE_CHOICE:-en_US}"
+
+# ISO_LANG_PKG: sufixo usado pelos pacotes de idioma no Debian (hunspell-*,
+# aspell-*, libreoffice-l10n-*, libreoffice-help-*, firefox-l10n-*). Vazio
+# para en_US porque o pacote base já vem em inglês, sem sufixo -en/-en-us.
+case "${ISO_LOCALE_CHOICE,,}" in
+    pt_br)
+        ISO_LOCALE="pt_BR.UTF-8"; ISO_LANGUAGE="pt_BR:pt:en_US:en"; ISO_LANG_PKG="pt-br" ;;
+    es_es|es)
+        ISO_LOCALE="es_ES.UTF-8"; ISO_LANGUAGE="es_ES:es:en_US:en"; ISO_LANG_PKG="es" ;;
+    fr_fr|fr)
+        ISO_LOCALE="fr_FR.UTF-8"; ISO_LANGUAGE="fr_FR:fr:en_US:en"; ISO_LANG_PKG="fr" ;;
+    de_de|de)
+        ISO_LOCALE="de_DE.UTF-8"; ISO_LANGUAGE="de_DE:de:en_US:en"; ISO_LANG_PKG="de" ;;
+    it_it|it)
+        ISO_LOCALE="it_IT.UTF-8"; ISO_LANGUAGE="it_IT:it:en_US:en"; ISO_LANG_PKG="it" ;;
+    en_us|en|*)
+        ISO_LOCALE="en_US.UTF-8"; ISO_LANGUAGE="en_US:en"; ISO_LANG_PKG="" ;;
+esac
+msg ">>> Idioma da ISO: $ISO_LOCALE" ">>> ISO language: $ISO_LOCALE"
+
 # ============================================================ #
 # 0. VERIFICAÇÃO DE VERSÃO E ATUALIZAÇÃO COMPLETA (opcional)
 # ============================================================ #
@@ -260,7 +291,7 @@ msg ">>> [5/8] Rodando configuração de sistema (root) dentro do chroot..." ">>
 # pode ter ficado com pacotes "half-configured". Corrige antes de continuar.
 sudo chroot squashfs-root dpkg --configure -a 2>/dev/null || true
 
-sudo chroot squashfs-root /usr/bin/env LIVE_USER="$LIVE_USER" LIVE_PASSWORD="$LIVE_PASSWORD" ISO_MODE="$ISO_MODE" LANG_MODE="$LANG_MODE" /bin/bash -s <<'CHROOT_ROOT_SETUP'
+sudo chroot squashfs-root /usr/bin/env LIVE_USER="$LIVE_USER" LIVE_PASSWORD="$LIVE_PASSWORD" ISO_MODE="$ISO_MODE" LANG_MODE="$LANG_MODE" ISO_LOCALE="$ISO_LOCALE" ISO_LANGUAGE="$ISO_LANGUAGE" ISO_LANG_PKG="$ISO_LANG_PKG" /bin/bash -s <<'CHROOT_ROOT_SETUP'
 set -euo pipefail
 export HOME=/root
 export DEBIAN_FRONTEND=noninteractive
@@ -311,7 +342,7 @@ apt-get install -y \
     breeze breeze-cursor-theme breeze-icon-theme breeze-gtk-theme \
     wget tree \
     aptitude \
-    libreoffice libreoffice-help-pt-br \
+    libreoffice \
     neowofetch \
     vlc \
     audacity \
@@ -344,9 +375,18 @@ apt-get purge -y \
 
 apt-get purge -y hunspell-fr hunspell-it hunspell-nl hunspell-ru hunspell-de-de fortunes-it || true
 
-apt-get install -y \
-    hunspell hunspell-pt-br aspell aspell-pt-br \
-    libreoffice libreoffice-l10n-pt-br hyphen-pt-br wget
+apt-get install -y hunspell aspell libreoffice wget
+
+# Pacotes de idioma (corretor ortográfico, hifenização, ajuda do LibreOffice)
+# para o idioma escolhido da ISO. Vazio para en_US (já vem em inglês).
+# Best-effort: em alguns idiomas nem todo pacote existe no repositório
+# (ex: hyphen-<lang> ou libreoffice-help-<lang>), por isso o "|| true".
+if [[ -n "$ISO_LANG_PKG" ]]; then
+    apt-get install -y \
+        "hunspell-$ISO_LANG_PKG" "aspell-$ISO_LANG_PKG" \
+        "libreoffice-l10n-$ISO_LANG_PKG" "libreoffice-help-$ISO_LANG_PKG" \
+        "hyphen-$ISO_LANG_PKG" || true
+fi
 
 # Instalador (Calamares) — só entra na ISO se o modo "live + instalador" foi
 # escolhido no início do script. No modo "somente live" ele é removido.
@@ -365,12 +405,12 @@ apt-get autoremove -y
 
 apt-get install -y locales
 sed -i 's/^# *en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen
-sed -i 's/^# *pt_BR.UTF-8 UTF-8/pt_BR.UTF-8 UTF-8/' /etc/locale.gen
+sed -i "s/^# *${ISO_LOCALE} UTF-8/${ISO_LOCALE} UTF-8/" /etc/locale.gen
 locale-gen
 
-cat > /etc/default/locale << 'EOF'
-LANG=pt_BR.UTF-8
-LANGUAGE=pt_BR:pt:en_US:en
+cat > /etc/default/locale << EOF
+LANG=$ISO_LOCALE
+LANGUAGE=$ISO_LANGUAGE
 EOF
 
 # Layout de teclado ABNT2 (pt-BR) a nível de sistema — afeta a tela de
@@ -396,7 +436,10 @@ fi
 
 extrepo enable mozilla
 apt-get update
-apt-get install -y firefox firefox-l10n-pt-br
+apt-get install -y firefox
+if [[ -n "$ISO_LANG_PKG" ]]; then
+    apt-get install -y "firefox-l10n-$ISO_LANG_PKG" || true
+fi
 
 # Extensões padrão via policy (não copiamos o perfil do Firefox pro skel:
 # teria histórico, cookies e senhas junto — policies.json instala as
@@ -621,13 +664,13 @@ sudo chroot squashfs-root chown -R "$LIVE_USER:$LIVE_USER" "/home/$LIVE_USER" ||
 
 msg ">>> [7/8] Rodando finalização (root) dentro do chroot..." ">>> [7/8] Running finalization (root) inside chroot..."
 
-sudo chroot squashfs-root /usr/bin/env LIVE_USER="$LIVE_USER" LANG_MODE="$LANG_MODE" /bin/bash -s <<'CHROOT_ROOT_FINISH'
+sudo chroot squashfs-root /usr/bin/env LIVE_USER="$LIVE_USER" LANG_MODE="$LANG_MODE" ISO_LOCALE="$ISO_LOCALE" ISO_LANGUAGE="$ISO_LANGUAGE" /bin/bash -s <<'CHROOT_ROOT_FINISH'
 set -euo pipefail
 BUILD_LANG_MODE="$LANG_MODE"
 export DEBIAN_FRONTEND=noninteractive
-export LANG=pt_BR.UTF-8
-export LANGUAGE=pt_BR:pt:en_US:en
-export LC_ALL=pt_BR.UTF-8
+export LANG="$ISO_LOCALE"
+export LANGUAGE="$ISO_LANGUAGE"
+export LC_ALL="$ISO_LOCALE"
 
 msg() {
     if [[ "$BUILD_LANG_MODE" == "pt" ]]; then printf '%s\n' "$1"; else printf '%s\n' "$2"; fi
