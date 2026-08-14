@@ -131,9 +131,24 @@ connection and hardware.
 
 ### Testing the ISO
 
-Boot it in a VM before writing it to a real USB drive. For example, with QEMU:
+Boot it in a VM before writing it to a real USB drive. QEMU commands are
+given below per host OS. Two ways to boot:
+
+- **Live session only** — boots straight off the ISO, RAM-based, nothing
+  written to disk. Anything you do is lost when the VM shuts down. Good
+  for a quick sanity check.
+- **With a virtual disk** — attaches a `qcow2` disk alongside the ISO.
+  By itself this does **not** make the live session persistent (Debian
+  Live's squashfs still runs from RAM either way). It's only useful if
+  you built with the **live + installer** option (`[2]` at the ISO-mode
+  prompt): boot the VM, run Calamares, and install onto that virtual
+  disk. From then on, boot with just `-hda` (drop `-cdrom`/`-boot d`) to
+  start the real installed system — that copy is persistent.
+
+#### Linux
 
 ```bash
+# Live session only, no persistence
 qemu-system-x86_64 \
     -enable-kvm -cpu host \
     -m 8G -vga virtio -usb \
@@ -141,12 +156,55 @@ qemu-system-x86_64 \
     -drive format=raw,file=DebianAula.iso
 ```
 
-Or write it to a USB drive directly (⚠️ this overwrites the target device —
-double-check `/dev/sdX`):
+```bash
+# With a virtual disk, to test the Calamares installer (live + installer builds)
+qemu-img create -f qcow2 DebianAula.qcow2 50G
+qemu-system-x86_64 \
+    -enable-kvm -cpu host \
+    -m 8G -vga virtio -usb \
+    -device intel-hda -device hda-duplex \
+    -hda DebianAula.qcow2 -cdrom DebianAula.iso -boot d
+```
+
+Or write the ISO to a USB drive directly (⚠️ this overwrites the target
+device — double-check `/dev/sdX`):
 
 ```bash
 sudo dd if=DebianAula.iso of=/dev/sdX bs=4M status=progress oflag=sync
 ```
+
+#### Windows
+
+Requires [QEMU for Windows](https://www.qemu.org/download/#windows) and
+Hyper-V/WHPX enabled (`-accel whpx` — KVM is Linux-only). Run from
+PowerShell or cmd in the folder with the ISO:
+
+```bat
+qemu-img create -f qcow2 DebianAula.qcow2 50G
+qemu-system-x86_64 -accel whpx -cpu host -m 8G -vga virtio -usb ^
+    -hda DebianAula.qcow2 -cdrom DebianAula.iso -boot d
+```
+
+For a live-only test (no virtual disk), drop `-hda DebianAula.qcow2` and
+`-boot d`, and use `-cdrom DebianAula.iso` alone.
+
+#### macOS
+
+Install QEMU via [Homebrew](https://brew.sh) (`brew install qemu`) and use
+`-accel hvf` (Apple's hypervisor framework — KVM/WHPX don't apply here):
+
+```bash
+qemu-img create -f qcow2 DebianAula.qcow2 50G
+qemu-system-x86_64 -accel hvf -cpu host -m 8G -vga virtio -usb \
+    -hda DebianAula.qcow2 -cdrom DebianAula.iso -boot d
+```
+
+> On **Apple Silicon (M1/M2/M3/...)** `hvf` only accelerates same-architecture
+> code — this ISO is `x86_64`, so QEMU falls back to software emulation
+> (TCG) for the CPU instructions and will be noticeably slow. `-cpu host`
+> won't work either in that case; drop it (or try `-cpu max`). For a
+> smoother experience on Apple Silicon, consider [UTM](https://mac.getutm.app/)
+> instead, though it has the same underlying x86-on-ARM emulation cost.
 
 ## Screenshots
 
