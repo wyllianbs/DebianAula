@@ -581,6 +581,17 @@ else
     apt-get purge -y calamares calamares-settings-debian || true
 fi
 
+# Blindagem contra autoremove: tudo que está instalado neste ponto (nosso
+# app set curado) passa a contar como "instalado manualmente" no dpkg,
+# mesmo que tenha entrado como dependência de algum live-task-*/pacote
+# base. Sem isso, um "apt-get autoremove" mais tarde — inclusive o que o
+# Calamares roda por conta própria, no job "packages", depois de purgar
+# live-boot/live-task-* durante uma instalação real — pode levar junto
+# pacotes nossos (ex: conky, konsole) que só nunca foram marcados como
+# manuais explicitamente. É só metadado do dpkg, não reinstala nem muda
+# nada agora; só evita que sumam depois de um autoremove futuro.
+apt-mark manual $(dpkg-query -W -f='${Package}\n' | tr '\n' ' ') > /dev/null 2>&1 || true
+
 apt-get upgrade -y
 apt-get autoremove -y
 
