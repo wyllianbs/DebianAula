@@ -176,6 +176,54 @@ The build then runs mostly unattended. It pauses twice for interaction:
   the ISO is finalized. Close the apps you opened normally, then close the
   Xephyr window (or type `exit`) to resume the automated build.
 
+### Build process
+
+A full run of `build-iso.sh`, from the prompts above through a booted ISO
+tested in QEMU, on an English-locale host (`en_US`).
+
+**1. Interactive prompts.** `git clone` + `bash build-iso.sh`, then the
+build-time questions: live username, ISO mode, and the new configurable
+ISO language / keyboard / timezone (all left at their defaults here —
+`en_US`, `br`, `America/Sao_Paulo`). Notice the prompts themselves print in
+English, matching this host's `$LANG` — independent from the `en_US`
+chosen for the *generated* ISO.
+
+![Build prompts: username, mode, language, keyboard, timezone](screenshots/01-build-prompts.png)
+
+**2. Unattended chroot stage.** Packages installing, `kate-quickrun`
+downloaded straight from its latest GitHub release, then the script pauses
+right before opening the interactive desktop session.
+
+![Package installation and kate-quickrun download](screenshots/02-build-progress.png)
+
+**3. Interactive Xephyr session.** The nested desktop where manual
+tweaks happen — isolated from the host's real Plasma session. This is
+`neowofetch`'s cow banner inside Konsole, with `conky` already running in
+the corner showing system stats.
+
+![Xephyr nested desktop session with neowofetch and conky](screenshots/03-xephyr-customization.png)
+
+**4. Closing the interactive session.** Typing `exit` in the Xephyr shell
+hands control back to `build-iso.sh`, which resumes automation.
+
+![Exiting the Xephyr session to resume the build](screenshots/04-xephyr-exit.png)
+
+**5. Root finalization + squashfs.** Timezone/cleanup steps run inside the
+chroot one last time, then `mksquashfs` packs the filesystem — the slowest
+part of the build.
+
+![Root finalization and squashfs generation](screenshots/05-finalization-squashfs.png)
+
+**6. ISO assembly.** `xorriso` writes the final hybrid ISO image; the
+build reports the output path and exits.
+
+![xorriso generating the final DebianAula.iso](screenshots/06-iso-generated.png)
+
+**7. Testing in QEMU.** Booting the freshly built ISO in a VM before
+touching a real USB drive, per [Testing the ISO](#testing-the-iso) below.
+
+![Launching the built ISO in QEMU](screenshots/07-qemu-launch.png)
+
 ### If the build gets stuck
 
 `Ctrl+C` in the build's terminal doesn't always stop it cleanly — if your
@@ -325,57 +373,6 @@ qemu-system-x86_64 -accel hvf -cpu host -m 8G -vga virtio -usb \
 > won't work either in that case; drop it (or try `-cpu max`). For a
 > smoother experience on Apple Silicon, consider [UTM](https://mac.getutm.app/)
 > instead, though it has the same underlying x86-on-ARM emulation cost.
-
-## Screenshots
-
-A full run of `build-iso.sh`, from a fresh clone to a booted ISO tested in
-QEMU, on an English-locale host (`en_US`).
-
-### Build process
-
-**1. Interactive prompts.** `git clone` + `bash build-iso.sh`, then the
-build-time questions: live username, ISO mode, and the new configurable
-ISO language / keyboard / timezone (all left at their defaults here —
-`en_US`, `br`, `America/Sao_Paulo`). Notice the prompts themselves print in
-English, matching this host's `$LANG` — independent from the `en_US`
-chosen for the *generated* ISO.
-
-![Build prompts: username, mode, language, keyboard, timezone](screenshots/01-build-prompts.png)
-
-**2. Unattended chroot stage.** Packages installing, `kate-quickrun`
-downloaded straight from its latest GitHub release, then the script pauses
-right before opening the interactive desktop session.
-
-![Package installation and kate-quickrun download](screenshots/02-build-progress.png)
-
-**3. Interactive Xephyr session.** The nested desktop where manual
-tweaks happen — isolated from the host's real Plasma session. This is
-`neowofetch`'s cow banner inside Konsole, with `conky` already running in
-the corner showing system stats.
-
-![Xephyr nested desktop session with neowofetch and conky](screenshots/03-xephyr-customization.png)
-
-**4. Closing the interactive session.** Typing `exit` in the Xephyr shell
-hands control back to `build-iso.sh`, which resumes automation.
-
-![Exiting the Xephyr session to resume the build](screenshots/04-xephyr-exit.png)
-
-**5. Root finalization + squashfs.** Timezone/cleanup steps run inside the
-chroot one last time, then `mksquashfs` packs the filesystem — the slowest
-part of the build.
-
-![Root finalization and squashfs generation](screenshots/05-finalization-squashfs.png)
-
-**6. ISO assembly.** `xorriso` writes the final hybrid ISO image; the
-build reports the output path and exits.
-
-![xorriso generating the final DebianAula.iso](screenshots/06-iso-generated.png)
-
-**7. Testing in QEMU.** Booting the freshly built ISO in a VM before
-touching a real USB drive, per the [Testing the ISO](#testing-the-iso)
-section below.
-
-![Launching the built ISO in QEMU](screenshots/07-qemu-launch.png)
 
 ### Booting the result
 
