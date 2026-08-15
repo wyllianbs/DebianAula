@@ -84,22 +84,25 @@ msg "  it_IT — Italiano" "  it_IT — Italian"
 read -rp "$(mp "Código [en_US]: " "Code [en_US]: ")" ISO_LOCALE_CHOICE
 ISO_LOCALE_CHOICE="${ISO_LOCALE_CHOICE:-en_US}"
 
-# ISO_LANG_PKG: sufixo usado pelos pacotes de idioma no Debian (hunspell-*,
-# aspell-*, libreoffice-l10n-*, libreoffice-help-*, firefox-l10n-*). Vazio
+# ISO_LANG_PKG: sufixo usado pelos pacotes de idioma no Debian (aspell-*,
+# libreoffice-l10n-*, libreoffice-help-*, hyphen-*, firefox-l10n-*). Vazio
 # para en_US porque o pacote base já vem em inglês, sem sufixo -en/-en-us.
+# ISO_HUNSPELL_PKG: mesma coisa, mas só para hunspell-* — alemão é uma
+# exceção real no repositório Debian (pacote é hunspell-de-de, variante
+# regional, não hunspell-de como os outros pacotes de idioma usam).
 case "${ISO_LOCALE_CHOICE,,}" in
     pt_br)
-        ISO_LOCALE="pt_BR.UTF-8"; ISO_LANGUAGE="pt_BR:pt:en_US:en"; ISO_LANG_PKG="pt-br" ;;
+        ISO_LOCALE="pt_BR.UTF-8"; ISO_LANGUAGE="pt_BR:pt:en_US:en"; ISO_LANG_PKG="pt-br"; ISO_HUNSPELL_PKG="pt-br" ;;
     es_es|es)
-        ISO_LOCALE="es_ES.UTF-8"; ISO_LANGUAGE="es_ES:es:en_US:en"; ISO_LANG_PKG="es" ;;
+        ISO_LOCALE="es_ES.UTF-8"; ISO_LANGUAGE="es_ES:es:en_US:en"; ISO_LANG_PKG="es"; ISO_HUNSPELL_PKG="es" ;;
     fr_fr|fr)
-        ISO_LOCALE="fr_FR.UTF-8"; ISO_LANGUAGE="fr_FR:fr:en_US:en"; ISO_LANG_PKG="fr" ;;
+        ISO_LOCALE="fr_FR.UTF-8"; ISO_LANGUAGE="fr_FR:fr:en_US:en"; ISO_LANG_PKG="fr"; ISO_HUNSPELL_PKG="fr" ;;
     de_de|de)
-        ISO_LOCALE="de_DE.UTF-8"; ISO_LANGUAGE="de_DE:de:en_US:en"; ISO_LANG_PKG="de" ;;
+        ISO_LOCALE="de_DE.UTF-8"; ISO_LANGUAGE="de_DE:de:en_US:en"; ISO_LANG_PKG="de"; ISO_HUNSPELL_PKG="de-de" ;;
     it_it|it)
-        ISO_LOCALE="it_IT.UTF-8"; ISO_LANGUAGE="it_IT:it:en_US:en"; ISO_LANG_PKG="it" ;;
+        ISO_LOCALE="it_IT.UTF-8"; ISO_LANGUAGE="it_IT:it:en_US:en"; ISO_LANG_PKG="it"; ISO_HUNSPELL_PKG="it" ;;
     en_us|en|*)
-        ISO_LOCALE="en_US.UTF-8"; ISO_LANGUAGE="en_US:en"; ISO_LANG_PKG="" ;;
+        ISO_LOCALE="en_US.UTF-8"; ISO_LANGUAGE="en_US:en"; ISO_LANG_PKG=""; ISO_HUNSPELL_PKG="" ;;
 esac
 msg ">>> Idioma da ISO: $ISO_LOCALE" ">>> ISO language: $ISO_LOCALE"
 
@@ -375,7 +378,7 @@ msg ">>> [5/8] Rodando configuração de sistema (root) dentro do chroot..." ">>
 # pode ter ficado com pacotes "half-configured". Corrige antes de continuar.
 sudo chroot squashfs-root dpkg --configure -a 2>/dev/null || true
 
-sudo chroot squashfs-root /usr/bin/env LIVE_USER="$LIVE_USER" LIVE_PASSWORD="$LIVE_PASSWORD" ISO_MODE="$ISO_MODE" LANG_MODE="$LANG_MODE" ISO_LOCALE="$ISO_LOCALE" ISO_LANGUAGE="$ISO_LANGUAGE" ISO_LANG_PKG="$ISO_LANG_PKG" KEYBOARD_LAYOUT="$KEYBOARD_LAYOUT" /bin/bash -s <<'CHROOT_ROOT_SETUP'
+sudo chroot squashfs-root /usr/bin/env LIVE_USER="$LIVE_USER" LIVE_PASSWORD="$LIVE_PASSWORD" ISO_MODE="$ISO_MODE" LANG_MODE="$LANG_MODE" ISO_LOCALE="$ISO_LOCALE" ISO_LANGUAGE="$ISO_LANGUAGE" ISO_LANG_PKG="$ISO_LANG_PKG" ISO_HUNSPELL_PKG="$ISO_HUNSPELL_PKG" KEYBOARD_LAYOUT="$KEYBOARD_LAYOUT" /bin/bash -s <<'CHROOT_ROOT_SETUP'
 set -euo pipefail
 export HOME=/root
 export DEBIAN_FRONTEND=noninteractive
@@ -491,12 +494,12 @@ apt-get purge -y \
     "${PURGE_OTHER_LANGS[@]}" || true
 
 # Mesma lógica para os hunspell de outras línguas com purge dedicada
-# (hunspell-$ISO_LANG_PKG é reinstalado explicitamente logo abaixo de
+# (hunspell-$ISO_HUNSPELL_PKG é reinstalado explicitamente logo abaixo de
 # qualquer forma, mas evita a purga-e-reinstala desnecessária aqui).
 HUNSPELL_OTHER_LANGS=(hunspell-fr hunspell-it hunspell-nl hunspell-ru hunspell-de-de)
 FILTERED_HUNSPELL=()
 for pkg in "${HUNSPELL_OTHER_LANGS[@]}"; do
-    [[ "$pkg" == "hunspell-$ISO_LANG_PKG" ]] || FILTERED_HUNSPELL+=("$pkg")
+    [[ "$pkg" == "hunspell-$ISO_HUNSPELL_PKG" ]] || FILTERED_HUNSPELL+=("$pkg")
 done
 apt-get purge -y "${FILTERED_HUNSPELL[@]}" fortunes-it || true
 
@@ -506,9 +509,11 @@ apt-get install -y hunspell aspell libreoffice wget
 # para o idioma escolhido da ISO. Vazio para en_US (já vem em inglês).
 # Best-effort: em alguns idiomas nem todo pacote existe no repositório
 # (ex: hyphen-<lang> ou libreoffice-help-<lang>), por isso o "|| true".
+# hunspell usa ISO_HUNSPELL_PKG (não ISO_LANG_PKG): alemão é hunspell-de-de,
+# não hunspell-de como os demais pacotes de idioma.
 if [[ -n "$ISO_LANG_PKG" ]]; then
     apt-get install -y \
-        "hunspell-$ISO_LANG_PKG" "aspell-$ISO_LANG_PKG" \
+        "hunspell-$ISO_HUNSPELL_PKG" "aspell-$ISO_LANG_PKG" \
         "libreoffice-l10n-$ISO_LANG_PKG" "libreoffice-help-$ISO_LANG_PKG" \
         "hyphen-$ISO_LANG_PKG" || true
 fi
