@@ -14,6 +14,7 @@
 set -euo pipefail
 
 WORKDIR="$(pwd)"
+CONFIG_DIR="$WORKDIR/config"
 BASE_URL="https://cdimage.debian.org/debian-cd/current-live/amd64/iso-hybrid"
 
 # Script bilíngue (pt/en): detecta o idioma pelo $LANG/$LANGUAGE do sistema
@@ -39,6 +40,11 @@ mp() {
 }
 
 msg ">>> Diretório de trabalho: $WORKDIR" ">>> Working directory: $WORKDIR"
+
+# jq lê os arquivos de dados em config/ (pacotes, idiomas, versão da ISO
+# base) usados logo abaixo, antes da etapa [2/8] que instala o resto das
+# dependências do host — por isso é instalado aqui, cedo.
+command -v jq >/dev/null || { msg ">>> Instalando jq (necessário para ler config/*.json)..." ">>> Installing jq (needed to read config/*.json)..."; sudo apt-get update -qq && sudo apt-get install -y jq; }
 
 read -rp "$(mp "Nome do usuário da ISO live [debian]: " "Live ISO username [debian]: ")" LIVE_USER
 LIVE_USER="${LIVE_USER:-debian}"
@@ -85,26 +91,31 @@ msg "  it_IT — Italiano" "  it_IT — Italian"
 read -rp "$(mp "Código [en_US]: " "Code [en_US]: ")" ISO_LOCALE_CHOICE
 ISO_LOCALE_CHOICE="${ISO_LOCALE_CHOICE:-en_US}"
 
-# ISO_LANG_PKG: sufixo usado pelos pacotes de idioma no Debian (aspell-*,
-# libreoffice-l10n-*, libreoffice-help-*, hyphen-*, firefox-l10n-*). Vazio
-# para en_US porque o pacote base já vem em inglês, sem sufixo -en/-en-us.
-# ISO_HUNSPELL_PKG: mesma coisa, mas só para hunspell-* — alemão é uma
-# exceção real no repositório Debian (pacote é hunspell-de-de, variante
-# regional, não hunspell-de como os outros pacotes de idioma usam).
+# LANG_KEY: chave canônica em config/languages.json — aceita os mesmos
+# apelidos de sempre (es/es_ES, en/en_US, etc), só resolve pra chave.
 case "${ISO_LOCALE_CHOICE,,}" in
-    pt_br)
-        ISO_LOCALE="pt_BR.UTF-8"; ISO_LANGUAGE="pt_BR:pt:en_US:en"; ISO_LANG_PKG="pt-br"; ISO_HUNSPELL_PKG="pt-br" ;;
-    es_es|es)
-        ISO_LOCALE="es_ES.UTF-8"; ISO_LANGUAGE="es_ES:es:en_US:en"; ISO_LANG_PKG="es"; ISO_HUNSPELL_PKG="es" ;;
-    fr_fr|fr)
-        ISO_LOCALE="fr_FR.UTF-8"; ISO_LANGUAGE="fr_FR:fr:en_US:en"; ISO_LANG_PKG="fr"; ISO_HUNSPELL_PKG="fr" ;;
-    de_de|de)
-        ISO_LOCALE="de_DE.UTF-8"; ISO_LANGUAGE="de_DE:de:en_US:en"; ISO_LANG_PKG="de"; ISO_HUNSPELL_PKG="de-de" ;;
-    it_it|it)
-        ISO_LOCALE="it_IT.UTF-8"; ISO_LANGUAGE="it_IT:it:en_US:en"; ISO_LANG_PKG="it"; ISO_HUNSPELL_PKG="it" ;;
-    en_us|en|*)
-        ISO_LOCALE="en_US.UTF-8"; ISO_LANGUAGE="en_US:en"; ISO_LANG_PKG=""; ISO_HUNSPELL_PKG="" ;;
+    pt_br)    LANG_KEY="pt_BR" ;;
+    es_es|es) LANG_KEY="es_ES" ;;
+    fr_fr|fr) LANG_KEY="fr_FR" ;;
+    de_de|de) LANG_KEY="de_DE" ;;
+    it_it|it) LANG_KEY="it_IT" ;;
+    en_us|en|*) LANG_KEY="en_US" ;;
 esac
+
+# Todo o resto (pacote de idioma, pacote do hunspell — alemão é exceção
+# regional, hunspell-de-de —, manpages/task/mythes a preservar da purga
+# geral, nome traduzido do ícone do Calamares, rótulo do menu de boot)
+# vem de config/languages.json — uma fonte única em vez de vários case
+# statements espalhados pelo script.
+LANG_JSON="$CONFIG_DIR/languages.json"
+ISO_LOCALE=$(jq -r ".\"$LANG_KEY\".locale" "$LANG_JSON")
+ISO_LANGUAGE=$(jq -r ".\"$LANG_KEY\".language" "$LANG_JSON")
+ISO_LANG_PKG=$(jq -r ".\"$LANG_KEY\".lang_pkg" "$LANG_JSON")
+ISO_HUNSPELL_PKG=$(jq -r ".\"$LANG_KEY\".hunspell_pkg" "$LANG_JSON")
+DESKTOP_LANG=$(jq -r ".\"$LANG_KEY\".desktop_lang_code" "$LANG_JSON")
+DESKTOP_NAME=$(jq -r ".\"$LANG_KEY\".calamares_name" "$LANG_JSON")
+BOOT_ENTRY_LABEL=$(jq -r ".\"$LANG_KEY\".boot_label" "$LANG_JSON")
+mapfile -t KEEP_LANG_PKGS < <(jq -r ".\"$LANG_KEY\".keep_from_purge[]" "$LANG_JSON")
 msg ">>> Idioma da ISO: $ISO_LOCALE" ">>> ISO language: $ISO_LOCALE"
 
 echo
@@ -137,28 +148,44 @@ msg ">>> Fuso horário: $TIMEZONE" ">>> Timezone: $TIMEZONE"
 # 0. VERIFICAÇÃO DE VERSÃO E ATUALIZAÇÃO COMPLETA (opcional)
 # ============================================================ #
 #
-# Por padrão, o script reaproveita o ISO/squashfs-root já baixados/extraídos
-# (mais rápido, só atualiza pacotes por cima). Uma atualização completa baixa
-# a versão mais recente do ISO live do zero e reextrai tudo.
+# Por padrão (config/build.json: "debian_iso_version": "latest"), o script
+# reaproveita o ISO/squashfs-root já baixados/extraídos (mais rápido, só
+# atualiza pacotes por cima) e checa se há uma versão mais nova. Definir
+# uma versão fixa nesse arquivo (ex: "13.6.0") pula essa checagem remota
+# inteira e sempre builda contra aquela ISO base específica.
+DEBIAN_ISO_VERSION=$(jq -r '.debian_iso_version' "$CONFIG_DIR/build.json")
 
-LOCAL_ISO=$(ls debian-live-*-amd64-kde.iso 2>/dev/null | sort -V | tail -n1 || true)
+if [[ "$DEBIAN_ISO_VERSION" == "latest" ]]; then
+    LOCAL_ISO=$(ls debian-live-*-amd64-kde.iso 2>/dev/null | sort -V | tail -n1 || true)
 
-msg ">>> Verificando se há uma versão mais recente do ISO..." ">>> Checking for a newer ISO version..."
-REMOTE_ISO=$(
-    curl -fsSL --max-time 10 --retry 2 --retry-delay 2 "$BASE_URL/" 2>/dev/null |
-    grep -oE 'debian-live-[0-9]+(\.[0-9]+)+-amd64-kde\.iso' |
-    sort -V |
-    tail -n1
-) || true
+    msg ">>> Verificando se há uma versão mais recente do ISO..." ">>> Checking for a newer ISO version..."
+    REMOTE_ISO=$(
+        curl -fsSL --max-time 10 --retry 2 --retry-delay 2 "$BASE_URL/" 2>/dev/null |
+        grep -oE 'debian-live-[0-9]+(\.[0-9]+)+-amd64-kde\.iso' |
+        sort -V |
+        tail -n1
+    ) || true
 
-if [[ -z "$REMOTE_ISO" ]]; then
-    msg "    Não foi possível verificar a versão remota agora (sem rede?)." "    Could not check the remote version right now (no network?)."
-elif [[ -z "$LOCAL_ISO" ]]; then
-    msg "    Nenhuma ISO local encontrada. Versão mais recente disponível: $REMOTE_ISO" "    No local ISO found. Latest version available: $REMOTE_ISO"
-elif [[ "$REMOTE_ISO" != "$LOCAL_ISO" ]]; then
-    msg "    >>> Nova versão disponível! Local: $LOCAL_ISO  |  Remota: $REMOTE_ISO" "    >>> New version available! Local: $LOCAL_ISO  |  Remote: $REMOTE_ISO"
+    if [[ -z "$REMOTE_ISO" ]]; then
+        msg "    Não foi possível verificar a versão remota agora (sem rede?)." "    Could not check the remote version right now (no network?)."
+    elif [[ -z "$LOCAL_ISO" ]]; then
+        msg "    Nenhuma ISO local encontrada. Versão mais recente disponível: $REMOTE_ISO" "    No local ISO found. Latest version available: $REMOTE_ISO"
+    elif [[ "$REMOTE_ISO" != "$LOCAL_ISO" ]]; then
+        msg "    >>> Nova versão disponível! Local: $LOCAL_ISO  |  Remota: $REMOTE_ISO" "    >>> New version available! Local: $LOCAL_ISO  |  Remote: $REMOTE_ISO"
+    else
+        msg "    ISO local já é a versão mais recente ($LOCAL_ISO)." "    Local ISO is already the latest version ($LOCAL_ISO)."
+    fi
 else
-    msg "    ISO local já é a versão mais recente ($LOCAL_ISO)." "    Local ISO is already the latest version ($LOCAL_ISO)."
+    PINNED_ISO="debian-live-${DEBIAN_ISO_VERSION}-amd64-kde.iso"
+    LOCAL_ISO=""
+    [[ -e "$PINNED_ISO" ]] && LOCAL_ISO="$PINNED_ISO"
+    REMOTE_ISO="$PINNED_ISO"
+    msg ">>> Versão da ISO base fixada em config/build.json: $DEBIAN_ISO_VERSION" ">>> Base ISO version pinned in config/build.json: $DEBIAN_ISO_VERSION"
+    if [[ -n "$LOCAL_ISO" ]]; then
+        msg "    Já presente localmente: $LOCAL_ISO" "    Already present locally: $LOCAL_ISO"
+    else
+        msg "    Ainda não baixada, será obtida na próxima etapa." "    Not downloaded yet, will be fetched in the next step."
+    fi
 fi
 
 # Detecta se 'iso'/'squashfs-root' (se existirem) foram construídos num modo
@@ -239,21 +266,32 @@ echo "$ISO_MODE" > "$MODE_MARKER"
 
 msg ">>> [1/8] Localizando ISO KDE mais recente..." ">>> [1/8] Locating the latest KDE ISO..."
 
-ISO=$(ls debian-live-*-amd64-kde.iso 2>/dev/null | sort -V | tail -n1 || true)
+if [[ "$DEBIAN_ISO_VERSION" == "latest" ]]; then
+    ISO=$(ls debian-live-*-amd64-kde.iso 2>/dev/null | sort -V | tail -n1 || true)
+else
+    # Versão fixada: procura só o arquivo específico, nunca o "mais
+    # recente" via glob (poderia pegar uma versão diferente já baixada).
+    ISO=""
+    [[ -e "$PINNED_ISO" ]] && ISO="$PINNED_ISO"
+fi
 
 if [[ -n "$ISO" ]]; then
     msg "    Usando ISO já presente localmente: $ISO" "    Using ISO already present locally: $ISO"
 else
-    # Reaproveita a verificação já feita na etapa 0; só refaz se falhou antes.
-    if [[ -z "$REMOTE_ISO" ]]; then
-        REMOTE_ISO=$(
-            curl -fsSL --retry 3 --retry-delay 3 "$BASE_URL/" |
-            grep -oE 'debian-live-[0-9]+(\.[0-9]+)+-amd64-kde\.iso' |
-            sort -V |
-            tail -n1
-        ) || true
+    if [[ "$DEBIAN_ISO_VERSION" == "latest" ]]; then
+        # Reaproveita a verificação já feita na etapa 0; só refaz se falhou antes.
+        if [[ -z "$REMOTE_ISO" ]]; then
+            REMOTE_ISO=$(
+                curl -fsSL --retry 3 --retry-delay 3 "$BASE_URL/" |
+                grep -oE 'debian-live-[0-9]+(\.[0-9]+)+-amd64-kde\.iso' |
+                sort -V |
+                tail -n1
+            ) || true
+        fi
+        ISO="$REMOTE_ISO"
+    else
+        ISO="$PINNED_ISO"
     fi
-    ISO="$REMOTE_ISO"
 
     if [[ -z "$ISO" ]]; then
         msg "Não foi possível localizar o ISO KDE (falha de rede?). Tente rodar de novo." "Could not locate the KDE ISO (network failure?). Try running again."
@@ -274,7 +312,7 @@ msg ">>> [2/8] Instalando dependências no host..." ">>> [2/8] Installing depend
 sudo apt-get update
 sudo apt-get install -y \
     xorriso squashfs-tools syslinux syslinux-efi isolinux fakeroot \
-    htop vim atop cloud-init bindfs xserver-xephyr
+    htop vim atop cloud-init bindfs xserver-xephyr jq
 
 # ============================================================ #
 # 3. EXTRAÇÃO DO ISO E DO SQUASHFS
@@ -379,7 +417,44 @@ msg ">>> [5/8] Rodando configuração de sistema (root) dentro do chroot..." ">>
 # pode ter ficado com pacotes "half-configured". Corrige antes de continuar.
 sudo chroot squashfs-root dpkg --configure -a 2>/dev/null || true
 
-sudo chroot squashfs-root /usr/bin/env LIVE_USER="$LIVE_USER" LIVE_PASSWORD="$LIVE_PASSWORD" ISO_MODE="$ISO_MODE" LANG_MODE="$LANG_MODE" ISO_LOCALE="$ISO_LOCALE" ISO_LANGUAGE="$ISO_LANGUAGE" ISO_LANG_PKG="$ISO_LANG_PKG" ISO_HUNSPELL_PKG="$ISO_HUNSPELL_PKG" KEYBOARD_LAYOUT="$KEYBOARD_LAYOUT" /bin/bash -s <<'CHROOT_ROOT_SETUP'
+# Listas de pacotes vêm de config/packages.json — lidas aqui no host (jq
+# não precisa existir dentro do chroot) e passadas como strings separadas
+# por espaço via env para o chroot abaixo. A purga de manpages/task/
+# mythes/myspell de outras línguas já sai filtrada da língua escolhida
+# (keep_from_purge, de languages.json); mesma lógica para o hunspell.
+PKG_JSON="$CONFIG_DIR/packages.json"
+PKG_ALWAYS=$(jq -r '.install.always[]' "$PKG_JSON" | tr '\n' ' ')
+PKG_INSTALL_MODE_ONLY=$(jq -r '.install.install_mode_only[]' "$PKG_JSON" | tr '\n' ' ')
+PKG_KERNEL_LIQUORIX=$(jq -r '.install.kernel_liquorix[]' "$PKG_JSON" | tr '\n' ' ')
+PURGE_ALWAYS=$(jq -r '.purge.always[]' "$PKG_JSON" | tr '\n' ' ')
+PURGE_ALWAYS_WILDCARDS=$(jq -r '.purge.always_wildcards[]' "$PKG_JSON" | tr '\n' ' ')
+PURGE_LIVE_MODE_ONLY=$(jq -r '.purge.live_mode_only[]' "$PKG_JSON" | tr '\n' ' ')
+PURGE_KERNEL_DEFAULT_WILDCARDS=$(jq -r '.purge.kernel_default_wildcards[]' "$PKG_JSON" | tr '\n' ' ')
+PURGE_MISC=$(jq -r '.purge.misc[]' "$PKG_JSON" | tr '\n' ' ')
+
+mapfile -t PURGE_OTHER_LANGS_ALL < <(jq -r '.purge.other_language_manpages_task_mythes_myspell[]' "$PKG_JSON")
+PURGE_OTHER_LANGS=()
+for pkg in "${PURGE_OTHER_LANGS_ALL[@]}"; do
+    keep=0
+    for k in "${KEEP_LANG_PKGS[@]}"; do [[ "$pkg" == "$k" ]] && keep=1; done
+    [[ "$keep" -eq 0 ]] && PURGE_OTHER_LANGS+=("$pkg")
+done
+PURGE_OTHER_LANGS_STR="${PURGE_OTHER_LANGS[*]:-}"
+
+mapfile -t HUNSPELL_OTHER_ALL < <(jq -r '.purge.hunspell_other_languages[]' "$PKG_JSON")
+HUNSPELL_OTHER=()
+for pkg in "${HUNSPELL_OTHER_ALL[@]}"; do
+    [[ "$pkg" == "hunspell-$ISO_HUNSPELL_PKG" ]] || HUNSPELL_OTHER+=("$pkg")
+done
+HUNSPELL_OTHER_STR="${HUNSPELL_OTHER[*]:-}"
+
+# policies.json do Firefox vem de config/firefox-policies.json (formato
+# nativo, sem escaping de heredoc). Copiado pro squashfs-root antes do
+# chroot, já que o chroot não enxerga $CONFIG_DIR (raiz de arquivos
+# diferente) — lido de /tmp de dentro do chroot logo abaixo.
+sudo cp "$CONFIG_DIR/firefox-policies.json" squashfs-root/tmp/firefox-policies.json
+
+sudo chroot squashfs-root /usr/bin/env LIVE_USER="$LIVE_USER" LIVE_PASSWORD="$LIVE_PASSWORD" ISO_MODE="$ISO_MODE" LANG_MODE="$LANG_MODE" ISO_LOCALE="$ISO_LOCALE" ISO_LANGUAGE="$ISO_LANGUAGE" ISO_LANG_PKG="$ISO_LANG_PKG" ISO_HUNSPELL_PKG="$ISO_HUNSPELL_PKG" KEYBOARD_LAYOUT="$KEYBOARD_LAYOUT" DESKTOP_LANG="$DESKTOP_LANG" DESKTOP_NAME="$DESKTOP_NAME" PKG_ALWAYS="$PKG_ALWAYS" PKG_INSTALL_MODE_ONLY="$PKG_INSTALL_MODE_ONLY" PKG_KERNEL_LIQUORIX="$PKG_KERNEL_LIQUORIX" PURGE_ALWAYS="$PURGE_ALWAYS" PURGE_ALWAYS_WILDCARDS="$PURGE_ALWAYS_WILDCARDS" PURGE_LIVE_MODE_ONLY="$PURGE_LIVE_MODE_ONLY" PURGE_KERNEL_DEFAULT_WILDCARDS="$PURGE_KERNEL_DEFAULT_WILDCARDS" PURGE_MISC="$PURGE_MISC" PURGE_OTHER_LANGS_STR="$PURGE_OTHER_LANGS_STR" HUNSPELL_OTHER_STR="$HUNSPELL_OTHER_STR" /bin/bash -s <<'CHROOT_ROOT_SETUP'
 set -euo pipefail
 export HOME=/root
 export DEBIAN_FRONTEND=noninteractive
@@ -432,77 +507,25 @@ EOF
 apt-get update
 apt-get upgrade -y
 
-apt-get install -y \
-    npm nodejs php \
-    okular okular-backend-odp okular-backend-odt okular-extra-backends \
-    thonny \
-    breeze breeze-cursor-theme breeze-icon-theme breeze-gtk-theme \
-    wget tree \
-    aptitude \
-    libreoffice \
-    neowofetch \
-    vlc \
-    audacity \
-    audacious \
-    gromit-mpx \
-    ark \
-    xcvt conky-all \
-    python3 python3-numpy python3-matplotlib python3-scipy pipenv python3-pillow \
-    vdpauinfo systemd-timesyncd \
-    curl \
-    lsb-release \
-    vim neovim neovim-qt kate konsole konsole-kpart gwenview chromium chromium-l10n \
-    pciutils \
-    sddm-theme-maui sddm-theme-debian-maui sddm-theme-maldives \
-    xserver-xorg xserver-xorg-video-all \
-    ssh \
-    host net-tools dnsutils lshw
+# Pacotes vêm de config/packages.json, já resolvidos no host (PKG_*/
+# PURGE_*, passados via env). "set -f" evita que o bash tente expandir os
+# curingas ('aspell*' etc, usados pelo apt-get pro próprio matching
+# interno, não pelo shell) como glob de arquivos locais.
+set -f
+apt-get install -y $PKG_ALWAYS
 
 # Manpages/task-metapackage/mythes/myspell/hunspell de OUTRAS línguas são
 # sempre purgados (bloat de documentação, não afeta o idioma da interface),
-# EXCETO os da língua escolhida da ISO (ISO_LOCALE) — inglês nunca aparece
-# nessas listas, então já fica de fora naturalmente (fallback garantido).
-PURGE_OTHER_LANGS=(
-    manpages-de manpages-es manpages-fr manpages-hu manpages-it manpages-ja
-    manpages-mk manpages-nl manpages-pl manpages-ro manpages-tr manpages-zh
-    task-dutch task-german task-italian task-japanese task-macedonian
-    task-polish task-romanian task-spanish task-turkish
-    mythes-cs mythes-de mythes-de-ch mythes-fr mythes-it mythes-ne mythes-ru mythes-sk
-    myspell-es myspell-et myspell-fa myspell-ga myspell-he myspell-nb myspell-nn
-    myspell-sk myspell-sq myspell-uk
-)
-case "$ISO_LOCALE" in
-    es_ES.UTF-8) KEEP_LANG_PKGS=(manpages-es task-spanish myspell-es) ;;
-    fr_FR.UTF-8) KEEP_LANG_PKGS=(manpages-fr mythes-fr) ;;
-    de_DE.UTF-8) KEEP_LANG_PKGS=(manpages-de task-german mythes-de mythes-de-ch) ;;
-    it_IT.UTF-8) KEEP_LANG_PKGS=(manpages-it task-italian mythes-it) ;;
-    *) KEEP_LANG_PKGS=() ;;
-esac
-if [[ ${#KEEP_LANG_PKGS[@]} -gt 0 ]]; then
-    FILTERED_PURGE=()
-    for pkg in "${PURGE_OTHER_LANGS[@]}"; do
-        keep=0
-        for k in "${KEEP_LANG_PKGS[@]}"; do [[ "$pkg" == "$k" ]] && keep=1; done
-        [[ "$keep" -eq 0 ]] && FILTERED_PURGE+=("$pkg")
-    done
-    PURGE_OTHER_LANGS=("${FILTERED_PURGE[@]}")
-fi
-
-apt-get purge -y \
-    sddm-theme-elarun sddm-theme-debian-elarun connman goldendict kasumi quassel \
-    mozc-data mozc-server mozc-utils-gui uim meteo-qt meteo-qt-l10n \
-    firefox-esr 'aspell*' 'libreoffice*' 'hyphen*' \
-    "${PURGE_OTHER_LANGS[@]}" || true
+# EXCETO os da língua escolhida da ISO (já filtrados no host, via
+# keep_from_purge em config/languages.json — inglês nunca aparece nessas
+# listas, então já fica de fora naturalmente/fallback garantido).
+apt-get purge -y $PURGE_ALWAYS $PURGE_ALWAYS_WILDCARDS $PURGE_OTHER_LANGS_STR || true
 
 # Mesma lógica para os hunspell de outras línguas com purge dedicada
 # (hunspell-$ISO_HUNSPELL_PKG é reinstalado explicitamente logo abaixo de
 # qualquer forma, mas evita a purga-e-reinstala desnecessária aqui).
-HUNSPELL_OTHER_LANGS=(hunspell-fr hunspell-it hunspell-nl hunspell-ru hunspell-de-de)
-FILTERED_HUNSPELL=()
-for pkg in "${HUNSPELL_OTHER_LANGS[@]}"; do
-    [[ "$pkg" == "hunspell-$ISO_HUNSPELL_PKG" ]] || FILTERED_HUNSPELL+=("$pkg")
-done
-apt-get purge -y "${FILTERED_HUNSPELL[@]}" fortunes-it || true
+apt-get purge -y $HUNSPELL_OTHER_STR $PURGE_MISC || true
+set +f
 
 apt-get install -y hunspell aspell libreoffice wget
 
@@ -522,24 +545,16 @@ fi
 # Instalador (Calamares) — só entra na ISO se o modo "live + instalador" foi
 # escolhido no início do script. No modo "somente live" ele é removido.
 if [[ "$ISO_MODE" == "install" ]]; then
-    apt-get install -y \
-        calamares calamares-settings-debian \
-        parted gdisk dosfstools os-prober \
-        grub-efi-amd64-bin grub-pc-bin grub2-common \
-        squashfs-tools
+    set -f
+    apt-get install -y $PKG_INSTALL_MODE_ONLY
+    set +f
 
     # calamares-settings-debian não traduz o ícone "Install Debian" para
     # vários idiomas. Best-effort: acha qualquer .desktop com esse Name=
     # fixo e injeta/atualiza a tradução Name[<código>] para a língua da
-    # ISO. en_US não precisa (já é o texto padrão).
-    case "$ISO_LOCALE" in
-        pt_BR.UTF-8) DESKTOP_LANG="pt_BR"; DESKTOP_NAME="Instalar Debian" ;;
-        es_ES.UTF-8) DESKTOP_LANG="es";    DESKTOP_NAME="Instalar Debian" ;;
-        fr_FR.UTF-8) DESKTOP_LANG="fr";    DESKTOP_NAME="Installer Debian" ;;
-        de_DE.UTF-8) DESKTOP_LANG="de";    DESKTOP_NAME="Debian installieren" ;;
-        it_IT.UTF-8) DESKTOP_LANG="it";    DESKTOP_NAME="Installa Debian" ;;
-        *) DESKTOP_LANG="" ;;
-    esac
+    # ISO. en_US não precisa (já é o texto padrão). DESKTOP_LANG/
+    # DESKTOP_NAME vêm de config/languages.json, resolvidos no host e
+    # passados via env (ver invocação do chroot acima).
     if [[ -n "$DESKTOP_LANG" ]]; then
         for f in $(grep -rl '^Name=Install Debian' /usr/share/applications /etc/skel/Desktop 2>/dev/null); do
             if grep -q "^Name\[$DESKTOP_LANG\]=" "$f"; then
@@ -578,7 +593,7 @@ EOF
         mv /etc/calamares/settings.conf.new /etc/calamares/settings.conf
     fi
 else
-    apt-get purge -y calamares calamares-settings-debian || true
+    apt-get purge -y $PURGE_LIVE_MODE_ONLY || true
 fi
 
 # Blindagem contra autoremove: tudo que está instalado neste ponto (nosso
@@ -636,52 +651,17 @@ fi
 # Extensões padrão via policy (não copiamos o perfil do Firefox pro skel:
 # teria histórico, cookies e senhas junto — policies.json instala as
 # extensões limpo, direto do addons.mozilla.org, sem carregar dado pessoal).
+# Conteúdo vem de config/firefox-policies.json (host), copiado pro /tmp
+# do chroot antes desta etapa.
 mkdir -p /etc/firefox
-cat > /etc/firefox/policies.json << 'EOF'
-{
-  "policies": {
-    "ExtensionSettings": {
-      "uBlock0@raymondhill.net": {
-        "install_url": "https://addons.mozilla.org/firefox/downloads/latest/ublock-origin/latest.xpi",
-        "installation_mode": "normal_installed"
-      },
-      "cookie-manager@robwu.nl": {
-        "install_url": "https://addons.mozilla.org/firefox/downloads/latest/cookie-manager/latest.xpi",
-        "installation_mode": "normal_installed"
-      }
-    },
-    "Homepage": {
-      "URL": "https://moodle.ufsc.br",
-      "StartPage": "homepage"
-    },
-    "Preferences": {
-      "browser.download.useDownloadDir": {
-        "Value": false,
-        "Status": "default"
-      },
-      "browser.privatebrowsing.autostart": {
-        "Value": true,
-        "Status": "default"
-      },
-      "browser.theme.toolbar-theme": {
-        "Value": 0,
-        "Status": "default"
-      }
-    },
-    "PasswordManagerEnabled": false,
-    "SearchEngines": {
-      "Default": "Google",
-      "Remove": ["Bing", "MercadoLivre", "Wikipédia (pt)"]
-    }
-  }
-}
-EOF
+cp /tmp/firefox-policies.json /etc/firefox/policies.json
 
 # Este Firefox (instalado direto em /usr/lib/firefox pelo repo Mozilla) lê
 # políticas do diretório de distribuição da própria instalação — não confia
 # só em /etc/firefox/policies.json. Grava nos dois lugares por garantia.
 mkdir -p /usr/lib/firefox/distribution
 cp /etc/firefox/policies.json /usr/lib/firefox/distribution/policies.json
+rm -f /tmp/firefox-policies.json
 
 apt-get purge -y im-config || true
 
@@ -699,8 +679,10 @@ apt-get install -y code
 # Kernel liquorix
 extrepo enable liquorix
 apt-get update
-apt-get install -y linux-image-liquorix-amd64 linux-headers-liquorix-amd64 dkms
-apt-get purge -y 'linux-image-6.*-amd64' 'linux-headers-6.*-amd64' || true
+set -f
+apt-get install -y $PKG_KERNEL_LIQUORIX
+apt-get purge -y $PURGE_KERNEL_DEFAULT_WILDCARDS || true
+set +f
 apt-get autoremove --purge -y
 apt-get update
 
@@ -998,167 +980,26 @@ sudo cp "squashfs-root/boot/vmlinuz-$KVER" iso/live/vmlinuz
 sudo chown "$(id -un):$(id -gn)" iso/live/initrd.img iso/live/vmlinuz
 sudo chmod 644 iso/live/vmlinuz
 
-sudo tee iso/isolinux/isolinux.cfg > /dev/null << 'EOF'
-include menu.cfg
-default vesamenu.c32
-prompt 0
-timeout 50
-EOF
-
-# Rótulo da nossa entrada de boot, no idioma escolhido para a ISO
-# (ISO_LOCALE). As entradas originais do Debian (Live, Advanced install
-# options, Utilities...) ficam em inglês de propósito — são arquivos do
-# Debian que preferimos não "forkar" traduzidos, mesmo comportamento da
-# ISO oficial (só o instalador em si, depois de aberto, é traduzido).
-case "$ISO_LOCALE" in
-    pt_BR.UTF-8) BOOT_ENTRY_LABEL="DebianAula (live / instalar)" ;;
-    es_ES.UTF-8) BOOT_ENTRY_LABEL="DebianAula (live / instalar)" ;;
-    fr_FR.UTF-8) BOOT_ENTRY_LABEL="DebianAula (live / installer)" ;;
-    de_DE.UTF-8) BOOT_ENTRY_LABEL="DebianAula (live / installieren)" ;;
-    it_IT.UTF-8) BOOT_ENTRY_LABEL="DebianAula (live / installa)" ;;
-    *)           BOOT_ENTRY_LABEL="DebianAula (live / install)" ;;
-esac
+# Templates em config/boot/ — variante "install" preserva as entradas
+# originais do Debian (Live, fail-safe, Advanced install options,
+# Utilities); variante "live" é o menu único minimalista. BOOT_ENTRY_LABEL
+# (no idioma da ISO) já foi resolvido no início do script via
+# config/languages.json — as entradas originais do Debian ficam em
+# inglês de propósito (ver comentário lá).
+sudo cp "$CONFIG_DIR/boot/isolinux.cfg.tmpl" iso/isolinux/isolinux.cfg
 
 if [[ "$ISO_MODE" == "install" ]]; then
-    # Modo live + instalador: mantém as entradas originais do Debian Live
-    # (live normal, fail-safe, e o submenu inteiro do Debian-Installer
-    # clássico em /install/ — instalador gráfico/texto, modo especialista,
-    # automatizado, resgate, com síntese de voz, etc — todos já vêm
-    # prontos na ISO base, só nunca eram referenciados pelo nosso menu.cfg
-    # customizado). Só adiciona nossa entrada como padrão, na frente.
-    #
-    # grub.cfg (sintaxe própria do GRUB — NÃO é a mesma do isolinux/syslinux)
-    sudo tee iso/boot/grub/grub.cfg > /dev/null << 'EOF'
-source /boot/grub/config.cfg
-
-menuentry "__BOOT_ENTRY_LABEL__" --hotkey=d {
-	linux	/live/vmlinuz boot=live hostname=DebianAula components quiet splash overlay-size=50% video=1440x900@60
-	initrd	/live/initrd.img
-}
-
-# Live boot
-menuentry "Live system (amd64)" --hotkey=l {
-	linux	/live/vmlinuz boot=live components quiet splash findiso=${iso_path}
-	initrd	/live/initrd.img
-}
-menuentry "Live system (amd64 fail-safe mode)" {
-	linux	/live/vmlinuz boot=live components memtest noapic noapm nodma nomce nosmp nosplash vga=788
-	initrd	/live/initrd.img
-}
-
-# Installer (if any)
-if true; then
-
-source	/boot/grub/install_start.cfg
-
-submenu 'Advanced install options ...' --hotkey=a {
-
-	source /boot/grub/theme.cfg
-
-	source	/boot/grub/install.cfg
-
-}
-fi
-
-submenu 'Utilities...' --hotkey=u {
-
-	source /boot/grub/theme.cfg
-
-	# Firmware setup (UEFI)
-	if [ "${grub_platform}" = "efi" ]; then
-		menuentry "UEFI Firmware Settings" --hotkey=f {
-			fwsetup
-		}
-	fi
-
-	# Verify the checksums
-	if true; then
-		menuentry "Verify integrity of the boot medium" --hotkey=v {
-			linux	/live/vmlinuz boot=live components   findiso=${iso_path} verify-checksums
-			initrd	/live/initrd.img
-		}
-	fi
-}
-EOF
-    sudo sed -i "s#__BOOT_ENTRY_LABEL__#$BOOT_ENTRY_LABEL#" iso/boot/grub/grub.cfg
-
-    sudo tee iso/isolinux/live.cfg > /dev/null << 'EOF'
-label DebianAula
-	menu label ^__BOOT_ENTRY_LABEL__
-	menu default
-	linux /live/vmlinuz boot=live
-	initrd /live/initrd.img
-	append boot=live hostname=DebianAula components quiet splash overlay-size=50% video=1440x900@60
-
-label live-amd64
-	menu label ^Live system (amd64)
-	linux /live/vmlinuz
-	initrd /live/initrd.img
-	append boot=live components quiet splash
-
-label live-amd64-failsafe
-	menu label Live system (amd64 fail-safe mode)
-	linux /live/vmlinuz
-	initrd /live/initrd.img
-	append boot=live components memtest noapic noapm nodma nomce nosmp nosplash vga=788
-EOF
-    sudo sed -i "s#__BOOT_ENTRY_LABEL__#$BOOT_ENTRY_LABEL#" iso/isolinux/live.cfg
-
-    sudo tee iso/isolinux/menu.cfg > /dev/null << 'EOF'
-menu hshift 0
-menu width 82
-
-menu title Boot DebianAula
-include stdmenu.cfg
-include live.cfg
-include install.cfg
-menu begin utilities
-	menu label ^Utilities
-	menu title Utilities
-	include stdmenu.cfg
-	label mainmenu
-		menu label ^Back..
-		menu exit
-	include utilities.cfg
-menu end
-
-menu clear
-EOF
+    sudo cp "$CONFIG_DIR/boot/grub-install.cfg.tmpl" iso/boot/grub/grub.cfg
+    sudo cp "$CONFIG_DIR/boot/live-install.cfg.tmpl" iso/isolinux/live.cfg
+    sudo cp "$CONFIG_DIR/boot/menu-install.cfg.tmpl" iso/isolinux/menu.cfg
+    sudo sed -i "s#__BOOT_ENTRY_LABEL__#$BOOT_ENTRY_LABEL#" iso/boot/grub/grub.cfg iso/isolinux/live.cfg
 else
     # Modo somente live: menu único e minimalista, sem instalador (não faz
     # sentido oferecer o Debian-Installer clássico numa ISO sem espaço/
     # pacotes de instalação — calamares nem entra nesse modo).
-    #
-    # grub.cfg (sintaxe própria do GRUB — NÃO é a mesma do isolinux/syslinux)
-    sudo tee iso/boot/grub/grub.cfg > /dev/null << 'EOF'
-set default=0
-set timeout=5
-
-menuentry "DebianAula" {
-    linux /live/vmlinuz boot=live hostname=DebianAula components quiet splash overlay-size=50% video=1440x900@60
-    initrd /live/initrd.img
-}
-EOF
-
-    sudo tee iso/isolinux/live.cfg > /dev/null << 'EOF'
-label DebianAula
-	menu label ^DebianAula
-	menu default
-	linux /live/vmlinuz boot=live
-	initrd /live/initrd.img
-	append boot=live hostname=DebianAula components quiet splash overlay-size=50% video=1440x900@60
-EOF
-
-    sudo tee iso/isolinux/menu.cfg > /dev/null << 'EOF'
-menu hshift 0
-menu width 82
-
-menu title Boot DebianAula
-include stdmenu.cfg
-include live.cfg
-
-menu clear
-EOF
+    sudo cp "$CONFIG_DIR/boot/grub-live.cfg.tmpl" iso/boot/grub/grub.cfg
+    sudo cp "$CONFIG_DIR/boot/live-liveonly.cfg.tmpl" iso/isolinux/live.cfg
+    sudo cp "$CONFIG_DIR/boot/menu-liveonly.cfg.tmpl" iso/isolinux/menu.cfg
 fi
 
 # Limpeza antes de reempacotar

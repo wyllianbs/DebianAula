@@ -1,0 +1,5 @@
+{
+  "_comment_pt": "debian_iso_version: 'latest' verifica o cdimage.debian.org e baixa/reaproveita a debian-live-*-amd64-kde.iso mais recente, igual ao comportamento antes deste arquivo existir. Defina uma versão fixa (ex: '13.6.0') para sempre buildar contra essa ISO base específica, pulando a checagem remota -- útil para congelar a base de um curso.",
+  "_comment_en": "debian_iso_version: 'latest' checks cdimage.debian.org and downloads/reuses the newest debian-live-*-amd64-kde.iso, same as before this file existed. Set a fixed version string (e.g. '13.6.0') to always build against that exact base ISO instead, skipping the remote version check entirely -- useful to freeze what a course is built on.",
+  "debian_iso_version": "latest"
+}

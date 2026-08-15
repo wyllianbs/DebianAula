@@ -1,0 +1,18 @@
+label DebianAula
+	menu label ^__BOOT_ENTRY_LABEL__
+	menu default
+	linux /live/vmlinuz boot=live
+	initrd /live/initrd.img
+	append boot=live hostname=DebianAula components quiet splash overlay-size=50% video=1440x900@60
+
+label live-amd64
+	menu label ^Live system (amd64)
+	linux /live/vmlinuz
+	initrd /live/initrd.img
+	append boot=live components quiet splash
+
+label live-amd64-failsafe
+	menu label Live system (amd64 fail-safe mode)
+	linux /live/vmlinuz
+	initrd /live/initrd.img
+	append boot=live components memtest noapic noapm nodma nomce nosmp nosplash vga=788

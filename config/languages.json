@@ -1,0 +1,65 @@
+{
+  "_comment_pt": "Tabela de idiomas suportados pela ISO gerada (ISO_LOCALE, escolhida no prompt de build-iso.sh). Uma fonte única para dados antes espalhados em vários case statements: pacote de idioma, pacote do hunspell (alemão é exceção regional), manpages/task/mythes a preservar da purga geral de outras línguas, código e nome traduzido do ícone do Calamares (só install mode) e rótulo do menu de boot (só install mode). en_US é o padrão/fallback e não precisa de lang_pkg nem calamares_name.",
+  "_comment_en": "Supported languages for the generated ISO (ISO_LOCALE, chosen at the build-iso.sh prompt). A single source for data previously scattered across several case statements: language package suffix, hunspell package (German is a regional exception), manpages/task/mythes to keep from the general other-language purge, the Calamares icon's translation code and translated name (install mode only), and the boot menu label (install mode only). en_US is the default/fallback and needs no lang_pkg or calamares_name.",
+
+  "en_US": {
+    "locale": "en_US.UTF-8",
+    "language": "en_US:en",
+    "lang_pkg": "",
+    "hunspell_pkg": "",
+    "keep_from_purge": [],
+    "desktop_lang_code": "",
+    "calamares_name": "",
+    "boot_label": "DebianAula (live / install)"
+  },
+  "pt_BR": {
+    "locale": "pt_BR.UTF-8",
+    "language": "pt_BR:pt:en_US:en",
+    "lang_pkg": "pt-br",
+    "hunspell_pkg": "pt-br",
+    "keep_from_purge": [],
+    "desktop_lang_code": "pt_BR",
+    "calamares_name": "Instalar Debian",
+    "boot_label": "DebianAula (live / instalar)"
+  },
+  "es_ES": {
+    "locale": "es_ES.UTF-8",
+    "language": "es_ES:es:en_US:en",
+    "lang_pkg": "es",
+    "hunspell_pkg": "es",
+    "keep_from_purge": ["manpages-es", "task-spanish", "myspell-es"],
+    "desktop_lang_code": "es",
+    "calamares_name": "Instalar Debian",
+    "boot_label": "DebianAula (live / instalar)"
+  },
+  "fr_FR": {
+    "locale": "fr_FR.UTF-8",
+    "language": "fr_FR:fr:en_US:en",
+    "lang_pkg": "fr",
+    "hunspell_pkg": "fr",
+    "keep_from_purge": ["manpages-fr", "mythes-fr"],
+    "desktop_lang_code": "fr",
+    "calamares_name": "Installer Debian",
+    "boot_label": "DebianAula (live / installer)"
+  },
+  "de_DE": {
+    "locale": "de_DE.UTF-8",
+    "language": "de_DE:de:en_US:en",
+    "lang_pkg": "de",
+    "hunspell_pkg": "de-de",
+    "keep_from_purge": ["manpages-de", "task-german", "mythes-de", "mythes-de-ch"],
+    "desktop_lang_code": "de",
+    "calamares_name": "Debian installieren",
+    "boot_label": "DebianAula (live / installieren)"
+  },
+  "it_IT": {
+    "locale": "it_IT.UTF-8",
+    "language": "it_IT:it:en_US:en",
+    "lang_pkg": "it",
+    "hunspell_pkg": "it",
+    "keep_from_purge": ["manpages-it", "task-italian", "mythes-it"],
+    "desktop_lang_code": "it",
+    "calamares_name": "Installa Debian",
+    "boot_label": "DebianAula (live / installa)"
+  }
+}

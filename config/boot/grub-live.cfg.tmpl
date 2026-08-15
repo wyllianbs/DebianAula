@@ -1,0 +1,7 @@
+set default=0
+set timeout=5
+
+menuentry "DebianAula" {
+    linux /live/vmlinuz boot=live hostname=DebianAula components quiet splash overlay-size=50% video=1440x900@60
+    initrd /live/initrd.img
+}

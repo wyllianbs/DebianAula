@@ -1,0 +1,6 @@
+label DebianAula
+	menu label ^DebianAula
+	menu default
+	linux /live/vmlinuz boot=live
+	initrd /live/initrd.img
+	append boot=live hostname=DebianAula components quiet splash overlay-size=50% video=1440x900@60
