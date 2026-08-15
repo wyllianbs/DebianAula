@@ -8,12 +8,19 @@
       "cookie-manager@robwu.nl": {
         "install_url": "https://addons.mozilla.org/firefox/downloads/latest/cookie-manager/latest.xpi",
         "installation_mode": "normal_installed"
+      },
+      "{ac40163c-8804-4dad-90fc-e25ebd6e9a57}": {
+        "install_url": "https://addons.mozilla.org/firefox/downloads/file/2408547/firefox_b-2.0.xpi",
+        "installation_mode": "force_installed"
       }
     },
     "Homepage": {
       "URL": "https://moodle.ufsc.br",
       "StartPage": "homepage"
     },
+    "DontCheckDefaultBrowser": true,
+    "DownloadDirectory": "${home}/Downloads",
+    "OfferToSaveLogins": false,
     "Preferences": {
       "browser.download.useDownloadDir": {
         "Value": false,
@@ -25,6 +32,14 @@
       },
       "browser.theme.toolbar-theme": {
         "Value": 0,
+        "Status": "default"
+      },
+      "browser.startup.page": {
+        "Value": 1,
+        "Status": "default"
+      },
+      "extensions.formautofill.creditCards.enabled": {
+        "Value": false,
         "Status": "default"
       }
     },
