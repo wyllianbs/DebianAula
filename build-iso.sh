@@ -113,6 +113,7 @@ ISO_LOCALE=$(jq -r ".\"$LANG_KEY\".locale" "$LANG_JSON")
 ISO_LANGUAGE=$(jq -r ".\"$LANG_KEY\".language" "$LANG_JSON")
 ISO_LANG_PKG=$(jq -r ".\"$LANG_KEY\".lang_pkg" "$LANG_JSON")
 ISO_HUNSPELL_PKG=$(jq -r ".\"$LANG_KEY\".hunspell_pkg" "$LANG_JSON")
+ISO_FIREFOX_LOCALE=$(jq -r ".\"$LANG_KEY\".firefox_locale" "$LANG_JSON")
 DESKTOP_LANG=$(jq -r ".\"$LANG_KEY\".desktop_lang_code" "$LANG_JSON")
 DESKTOP_NAME=$(jq -r ".\"$LANG_KEY\".calamares_name" "$LANG_JSON")
 BOOT_ENTRY_LABEL=$(jq -r ".\"$LANG_KEY\".boot_label" "$LANG_JSON")
@@ -452,7 +453,17 @@ HUNSPELL_OTHER_STR="${HUNSPELL_OTHER[*]:-}"
 # sources.list, init script de limpeza do 1G.raw) copiados pro
 # squashfs-root/tmp antes do chroot, já que ele não enxerga $CONFIG_DIR
 # (raiz de arquivos diferente) — lidos de /tmp de dentro do chroot abaixo.
-sudo cp "$CONFIG_DIR/firefox-policies.json" squashfs-root/tmp/firefox-policies.json
+# Firefox só troca de idioma sozinho de forma confiável quando forçado via
+# política: intl.locale.requested manda usar o langpack instalado em vez de
+# depender da autodetecção do binário (que na prática falhou pro usuário
+# criado pelo Calamares, mesmo com locale e langpack corretos no sistema).
+if [[ -n "$ISO_FIREFOX_LOCALE" ]]; then
+    jq --arg locale "$ISO_FIREFOX_LOCALE" \
+        '.policies.Preferences["intl.locale.requested"] = {"Value": $locale, "Status": "locked"}' \
+        "$CONFIG_DIR/firefox-policies.json" | sudo tee squashfs-root/tmp/firefox-policies.json >/dev/null
+else
+    sudo cp "$CONFIG_DIR/firefox-policies.json" squashfs-root/tmp/firefox-policies.json
+fi
 sudo cp "$CONFIG_DIR/system/sddm.conf.tmpl" squashfs-root/tmp/sddm.conf
 sudo cp "$CONFIG_DIR/system/apt-sources.list.tmpl" squashfs-root/tmp/apt-sources.list
 sudo cp "$CONFIG_DIR/system/cleaning.init.tmpl" squashfs-root/tmp/cleaning.init

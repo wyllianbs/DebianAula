@@ -10,7 +10,8 @@
     "keep_from_purge": [],
     "desktop_lang_code": "",
     "calamares_name": "",
-    "boot_label": "DebianAula (live / install)"
+    "boot_label": "DebianAula (live / install)",
+    "firefox_locale": ""
   },
   "pt_BR": {
     "locale": "pt_BR.UTF-8",
@@ -20,7 +21,8 @@
     "keep_from_purge": [],
     "desktop_lang_code": "pt_BR",
     "calamares_name": "Instalar Debian",
-    "boot_label": "DebianAula (live / instalar)"
+    "boot_label": "DebianAula (live / instalar)",
+    "firefox_locale": "pt-BR"
   },
   "es_ES": {
     "locale": "es_ES.UTF-8",
@@ -30,7 +32,8 @@
     "keep_from_purge": ["manpages-es", "task-spanish", "myspell-es"],
     "desktop_lang_code": "es",
     "calamares_name": "Instalar Debian",
-    "boot_label": "DebianAula (live / instalar)"
+    "boot_label": "DebianAula (live / instalar)",
+    "firefox_locale": "es-ES"
   },
   "fr_FR": {
     "locale": "fr_FR.UTF-8",
@@ -40,7 +43,8 @@
     "keep_from_purge": ["manpages-fr", "mythes-fr"],
     "desktop_lang_code": "fr",
     "calamares_name": "Installer Debian",
-    "boot_label": "DebianAula (live / installer)"
+    "boot_label": "DebianAula (live / installer)",
+    "firefox_locale": "fr"
   },
   "de_DE": {
     "locale": "de_DE.UTF-8",
@@ -50,7 +54,8 @@
     "keep_from_purge": ["manpages-de", "task-german", "mythes-de", "mythes-de-ch"],
     "desktop_lang_code": "de",
     "calamares_name": "Debian installieren",
-    "boot_label": "DebianAula (live / installieren)"
+    "boot_label": "DebianAula (live / installieren)",
+    "firefox_locale": "de"
   },
   "it_IT": {
     "locale": "it_IT.UTF-8",
@@ -60,6 +65,7 @@
     "keep_from_purge": ["manpages-it", "task-italian", "mythes-it"],
     "desktop_lang_code": "it",
     "calamares_name": "Installa Debian",
-    "boot_label": "DebianAula (live / installa)"
+    "boot_label": "DebianAula (live / installa)",
+    "firefox_locale": "it"
   }
 }
