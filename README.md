@@ -70,8 +70,9 @@ distraction-free environment out of the box.
 | `build-iso.sh` | Main entry point. Downloads/reuses the base Debian Live ISO, extracts it, chroots in to install packages and apply system-wide configuration, runs the interactive customization step, then repacks the final ISO. |
 | `stop-build.sh` | Emergency stop — run from a second terminal if the build gets stuck and `Ctrl+C` doesn't work (see [If the build gets stuck](#if-the-build-gets-stuck)). |
 | `customize-skel.sh` | Copies `skel/` into the chroot's `/etc/skel`, so the live user's home directory is pre-populated the moment it's created by `adduser` — no manual setup needed. Also patches the keyboard layout and language into the copied config (KDE's `kxkbrc`, `user-dirs.locale`, Thonny) to match the choices made in `build-iso.sh`. |
-| `customize-home.sh` | Runs automatically (as the live user, before the interactive step) to install things that need real commands rather than static config files: npm globals, LazyVim, kate-quickrun (always fetching the *latest* GitHub release), conky. |
-| `skel/` | The actual dotfiles/config template applied to every new build: Dolphin, Konsole (+ Catppuccin color schemes), Kate, KDE global settings (theme, panel, keyboard, screen lock, splash, wallpaper), VS Code, Thonny. Edit files here directly to change what ships by default — no need to touch `build-iso.sh`. |
+| `customize-home.sh` | Runs automatically (as the live user, before the interactive step) to install things that need real commands rather than static config files: npm globals, LazyVim (nvim config also seeded from `skel/`, see below), kate-quickrun (always fetching the *latest* GitHub release). |
+| `skel/` | The actual dotfiles/config template applied to every new build: Dolphin, Konsole (+ Catppuccin color schemes), Kate, KDE global settings (theme, panel, keyboard, screen lock, splash, wallpaper), VS Code, Thonny, conky, and a LazyVim nvim config (minus `lazy-lock.json`/`lazyvim.json`, which `customize-home.sh` regenerates fresh each build). Edit files here directly to change what ships by default — no need to touch `build-iso.sh`. |
+| `config/` | Editable data driving the build, kept separate from the script logic: `packages.json` (install/purge lists, alphabetical, grouped by why they apply), `languages.json` (one entry per supported ISO language — locale, package suffixes, boot/Calamares labels), `firefox-policies.json` (the policy file in its native format), `build.json` (`debian_iso_version`: `"latest"` or a pinned version), and `boot/*.cfg.tmpl` (the grub/isolinux menu templates). See [Configuring the build](#configuring-the-build). |
 
 ## Installation
 
@@ -409,6 +410,32 @@ setup after login.
 
 ![Final Plasma desktop with taskbar and conky](screenshots/11-desktop-final.png)
 
+## Configuring the build
+
+Most day-to-day tweaks are plain-data edits under `config/` — no need to
+touch `build-iso.sh`'s logic:
+
+- **New packages**: edit `config/packages.json`. `install.always`/
+  `purge.always` apply to every build; `install_mode_only`/
+  `live_mode_only` apply to just one of the two ISO modes; keep the lists
+  alphabetical.
+- **New ISO language**: add one entry to `config/languages.json` (locale,
+  language package suffix, hunspell package if it differs, manpages/task/
+  mythes to keep from the other-language cleanup, the Calamares icon's
+  translated name, and the boot menu label). That's the only place it
+  needs to be added — `build-iso.sh` reads everything from there.
+- **Firefox policy changes**: edit `config/firefox-policies.json` directly
+  (it's the real policy file, not a template) — see
+  [Mozilla's policy reference](https://mozilla.github.io/policy-templates/)
+  for available keys.
+- **Boot menu wording**: edit the relevant `config/boot/*.cfg.tmpl` file.
+  `__BOOT_ENTRY_LABEL__` is replaced with the chosen language's boot label
+  from `languages.json` at build time.
+- **Pin the base Debian ISO version**: set `debian_iso_version` in
+  `config/build.json` to a specific version (e.g. `"13.6.0"`) instead of
+  `"latest"`, to freeze what a course is built on instead of always
+  tracking the newest Debian Live release.
+
 ## Customizing further
 
 - **App defaults captured by hand**: some KDE settings (Qt window/toolbar
@@ -416,12 +443,10 @@ setup after login.
   to disk when the relevant app is closed cleanly. Make the change in the
   interactive Xephyr session, close that app's window normally, then copy the
   relevant file(s) from the live user's home directory into `skel/` at the
-  same relative path.
-- **New packages**: edit the `apt-get install`/`apt-get purge` lists inside
-  the `CHROOT_ROOT_SETUP` heredoc in `build-iso.sh`.
-- **Firefox policy changes**: edit the `policies.json` heredoc in
-  `build-iso.sh` — see [Mozilla's policy reference](https://mozilla.github.io/policy-templates/)
-  for available keys.
+  same relative path. Static, hand-authored config (like conky, or the
+  nvim/LazyVim files) belongs directly in `skel/`; anything that needs a
+  real command to produce (npm globals, git clones, compiled plugin data)
+  stays in `customize-home.sh`.
 
 ## License
 
