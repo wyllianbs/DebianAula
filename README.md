@@ -156,6 +156,16 @@ bash build-iso.sh
 (The scripts are already marked executable in the repository, so no `chmod`
 is needed — `bash build-iso.sh` is enough.)
 
+To keep a full log while still watching the build live in your terminal,
+pipe through `tee`:
+
+```bash
+bash build-iso.sh 2>&1 | tee install.log
+```
+
+Handy if something goes wrong hours into an unattended run and you need
+to scroll back — or share the log — without having watched the whole thing.
+
 You'll be asked for:
 1. The live user's **username** and **password**.
 2. Whether the ISO should be **live-only** or **live + installer**.
