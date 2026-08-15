@@ -1012,7 +1012,7 @@ submenu 'Utilities...' --hotkey=u {
 	fi
 }
 EOF
-    sudo sed -i "s/__BOOT_ENTRY_LABEL__/$BOOT_ENTRY_LABEL/" iso/boot/grub/grub.cfg
+    sudo sed -i "s#__BOOT_ENTRY_LABEL__#$BOOT_ENTRY_LABEL#" iso/boot/grub/grub.cfg
 
     sudo tee iso/isolinux/live.cfg > /dev/null << 'EOF'
 label DebianAula
@@ -1034,7 +1034,7 @@ label live-amd64-failsafe
 	initrd /live/initrd.img
 	append boot=live components memtest noapic noapm nodma nomce nosmp nosplash vga=788
 EOF
-    sudo sed -i "s/__BOOT_ENTRY_LABEL__/$BOOT_ENTRY_LABEL/" iso/isolinux/live.cfg
+    sudo sed -i "s#__BOOT_ENTRY_LABEL__#$BOOT_ENTRY_LABEL#" iso/isolinux/live.cfg
 
     sudo tee iso/isolinux/menu.cfg > /dev/null << 'EOF'
 menu hshift 0
