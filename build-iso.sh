@@ -930,8 +930,123 @@ sudo cp "squashfs-root/boot/vmlinuz-$KVER" iso/live/vmlinuz
 sudo chown "$(id -un):$(id -gn)" iso/live/initrd.img iso/live/vmlinuz
 sudo chmod 644 iso/live/vmlinuz
 
-# grub.cfg (sintaxe própria do GRUB — NÃO é a mesma do isolinux/syslinux)
-sudo tee iso/boot/grub/grub.cfg > /dev/null << 'EOF'
+sudo tee iso/isolinux/isolinux.cfg > /dev/null << 'EOF'
+include menu.cfg
+default vesamenu.c32
+prompt 0
+timeout 50
+EOF
+
+if [[ "$ISO_MODE" == "install" ]]; then
+    # Modo live + instalador: mantém as entradas originais do Debian Live
+    # (live normal, fail-safe, e o submenu inteiro do Debian-Installer
+    # clássico em /install/ — instalador gráfico/texto, modo especialista,
+    # automatizado, resgate, com síntese de voz, etc — todos já vêm
+    # prontos na ISO base, só nunca eram referenciados pelo nosso menu.cfg
+    # customizado). Só adiciona nossa entrada como padrão, na frente.
+    #
+    # grub.cfg (sintaxe própria do GRUB — NÃO é a mesma do isolinux/syslinux)
+    sudo tee iso/boot/grub/grub.cfg > /dev/null << 'EOF'
+source /boot/grub/config.cfg
+
+menuentry "DebianAula (live / instalar)" --hotkey=d {
+	linux	/live/vmlinuz boot=live hostname=DebianAula components quiet splash overlay-size=50% video=1440x900@60
+	initrd	/live/initrd.img
+}
+
+# Live boot
+menuentry "Live system (amd64)" --hotkey=l {
+	linux	/live/vmlinuz boot=live components quiet splash findiso=${iso_path}
+	initrd	/live/initrd.img
+}
+menuentry "Live system (amd64 fail-safe mode)" {
+	linux	/live/vmlinuz boot=live components memtest noapic noapm nodma nomce nosmp nosplash vga=788
+	initrd	/live/initrd.img
+}
+
+# Installer (if any)
+if true; then
+
+source	/boot/grub/install_start.cfg
+
+submenu 'Advanced install options ...' --hotkey=a {
+
+	source /boot/grub/theme.cfg
+
+	source	/boot/grub/install.cfg
+
+}
+fi
+
+submenu 'Utilities...' --hotkey=u {
+
+	source /boot/grub/theme.cfg
+
+	# Firmware setup (UEFI)
+	if [ "${grub_platform}" = "efi" ]; then
+		menuentry "UEFI Firmware Settings" --hotkey=f {
+			fwsetup
+		}
+	fi
+
+	# Verify the checksums
+	if true; then
+		menuentry "Verify integrity of the boot medium" --hotkey=v {
+			linux	/live/vmlinuz boot=live components   findiso=${iso_path} verify-checksums
+			initrd	/live/initrd.img
+		}
+	fi
+}
+EOF
+
+    sudo tee iso/isolinux/live.cfg > /dev/null << 'EOF'
+label DebianAula
+	menu label ^DebianAula (live / instalar)
+	menu default
+	linux /live/vmlinuz boot=live
+	initrd /live/initrd.img
+	append boot=live hostname=DebianAula components quiet splash overlay-size=50% video=1440x900@60
+
+label live-amd64
+	menu label ^Live system (amd64)
+	linux /live/vmlinuz
+	initrd /live/initrd.img
+	append boot=live components quiet splash
+
+label live-amd64-failsafe
+	menu label Live system (amd64 fail-safe mode)
+	linux /live/vmlinuz
+	initrd /live/initrd.img
+	append boot=live components memtest noapic noapm nodma nomce nosmp nosplash vga=788
+EOF
+
+    sudo tee iso/isolinux/menu.cfg > /dev/null << 'EOF'
+menu hshift 0
+menu width 82
+
+menu title Boot DebianAula
+include stdmenu.cfg
+include live.cfg
+include install.cfg
+menu begin utilities
+	menu label ^Utilities
+	menu title Utilities
+	include stdmenu.cfg
+	label mainmenu
+		menu label ^Back..
+		menu exit
+	include utilities.cfg
+menu end
+
+menu clear
+EOF
+else
+    # Modo somente live: menu único e minimalista, sem instalador (não faz
+    # sentido oferecer o Debian-Installer clássico numa ISO sem espaço/
+    # pacotes de instalação — calamares nem entra nesse modo).
+    #
+    # grub.cfg (sintaxe própria do GRUB — NÃO é a mesma do isolinux/syslinux)
+    sudo tee iso/boot/grub/grub.cfg > /dev/null << 'EOF'
 set default=0
 set timeout=5
 
@@ -941,14 +1056,7 @@ menuentry "DebianAula" {
 }
 EOF
 
-sudo tee iso/isolinux/isolinux.cfg > /dev/null << 'EOF'
-include menu.cfg
-default vesamenu.c32
-prompt 0
-timeout 50
-EOF
-
-sudo tee iso/isolinux/live.cfg > /dev/null << 'EOF'
+    sudo tee iso/isolinux/live.cfg > /dev/null << 'EOF'
 label DebianAula
 	menu label ^DebianAula
 	menu default
@@ -957,7 +1065,7 @@ label DebianAula
 	append boot=live hostname=DebianAula components quiet splash overlay-size=50% video=1440x900@60
 EOF
 
-sudo tee iso/isolinux/menu.cfg > /dev/null << 'EOF'
+    sudo tee iso/isolinux/menu.cfg > /dev/null << 'EOF'
 menu hshift 0
 menu width 82
 
@@ -967,6 +1075,7 @@ include live.cfg
 
 menu clear
 EOF
+fi
 
 # Limpeza antes de reempacotar
 sudo umount -l "squashfs-root/home/$LIVE_USER/.cache/doc" 2>/dev/null || true
