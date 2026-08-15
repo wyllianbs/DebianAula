@@ -358,7 +358,7 @@ cleanup() {
         echo
     fi
 }
-trap cleanup EXIT
+trap cleanup EXIT INT TERM
 
 # Popula /etc/skel com as customizações de usuário (Dolphin, Firefox,
 # Konsole, Kate, painel/systray/relógio). Precisa rodar ANTES do adduser
@@ -858,7 +858,7 @@ sudo umount -lf squashfs-root/run
 sudo umount -lf squashfs-root/dev/shm
 sudo umount -lf squashfs-root/dev/pts
 sudo umount -lf squashfs-root/dev
-trap - EXIT   # já desmontamos manualmente, remove o trap de cleanup
+trap - EXIT INT TERM   # já desmontamos manualmente, remove o trap de cleanup
 
 # Kernel/initrd atuais dentro do squashfs
 KVER=$(basename "$(ls squashfs-root/boot/vmlinuz-* | sort -V | tail -n1)" | sed 's/vmlinuz-//')

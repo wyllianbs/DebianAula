@@ -68,6 +68,7 @@ distraction-free environment out of the box.
 | File | Purpose |
 |---|---|
 | `build-iso.sh` | Main entry point. Downloads/reuses the base Debian Live ISO, extracts it, chroots in to install packages and apply system-wide configuration, runs the interactive customization step, then repacks the final ISO. |
+| `stop-build.sh` | Emergency stop — run from a second terminal if the build gets stuck and `Ctrl+C` doesn't work (see [If the build gets stuck](#if-the-build-gets-stuck)). |
 | `customize-skel.sh` | Copies `skel/` into the chroot's `/etc/skel`, so the live user's home directory is pre-populated the moment it's created by `adduser` — no manual setup needed. Also patches the keyboard layout and language into the copied config (KDE's `kxkbrc`, `user-dirs.locale`, Thonny) to match the choices made in `build-iso.sh`. |
 | `customize-home.sh` | Runs automatically (as the live user, before the interactive step) to install things that need real commands rather than static config files: npm globals, LazyVim, kate-quickrun (always fetching the *latest* GitHub release), conky. |
 | `skel/` | The actual dotfiles/config template applied to every new build: Dolphin, Konsole (+ Catppuccin color schemes), Kate, KDE global settings (theme, panel, keyboard, screen lock, splash, wallpaper), VS Code, Thonny. Edit files here directly to change what ships by default — no need to touch `build-iso.sh`. |
@@ -174,6 +175,25 @@ The build then runs mostly unattended. It pauses twice for interaction:
   additional manual tweaks (Dolphin view mode, Konsole toolbar, etc.) before
   the ISO is finalized. Close the apps you opened normally, then close the
   Xephyr window (or type `exit`) to resume the automated build.
+
+### If the build gets stuck
+
+`Ctrl+C` in the build's terminal doesn't always stop it cleanly — if your
+`sudo` uses `use_pty` (a common security default), the commands it runs
+(`apt-get`, `mksquashfs`, the chroot itself) end up in a separate
+session/pty that never receives that terminal's `SIGINT`. From a
+**second** terminal, in the same directory, run:
+
+```bash
+bash stop-build.sh
+```
+
+This kills everything running inside the chroot, tears down the isolated
+`/proc`/`/sys`/`/dev`/`/run` mounts `build-iso.sh` sets up (never anything
+belonging to the host — see [Run the build inside a VM](#run-the-build-inside-a-vm-required)
+for why those are isolated in the first place), and leaves `squashfs-root`/
+`iso` in a resumable state. Running `bash build-iso.sh` again afterwards
+picks up where it left off.
 
 The finished ISO is written to the repository directory under the filename
 you chose at step 3 (`DebianAula.iso`/`DebianAulaInstall.iso` by default,
