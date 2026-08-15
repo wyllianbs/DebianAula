@@ -527,6 +527,28 @@ if [[ "$ISO_MODE" == "install" ]]; then
         parted gdisk dosfstools os-prober \
         grub-efi-amd64-bin grub-pc-bin grub2-common \
         squashfs-tools
+
+    # calamares-settings-debian não traduz o ícone "Install Debian" para
+    # vários idiomas. Best-effort: acha qualquer .desktop com esse Name=
+    # fixo e injeta/atualiza a tradução Name[<código>] para a língua da
+    # ISO. en_US não precisa (já é o texto padrão).
+    case "$ISO_LOCALE" in
+        pt_BR.UTF-8) DESKTOP_LANG="pt_BR"; DESKTOP_NAME="Instalar Debian" ;;
+        es_ES.UTF-8) DESKTOP_LANG="es";    DESKTOP_NAME="Instalar Debian" ;;
+        fr_FR.UTF-8) DESKTOP_LANG="fr";    DESKTOP_NAME="Installer Debian" ;;
+        de_DE.UTF-8) DESKTOP_LANG="de";    DESKTOP_NAME="Debian installieren" ;;
+        it_IT.UTF-8) DESKTOP_LANG="it";    DESKTOP_NAME="Installa Debian" ;;
+        *) DESKTOP_LANG="" ;;
+    esac
+    if [[ -n "$DESKTOP_LANG" ]]; then
+        for f in $(grep -rl '^Name=Install Debian' /usr/share/applications /etc/skel/Desktop 2>/dev/null); do
+            if grep -q "^Name\[$DESKTOP_LANG\]=" "$f"; then
+                sed -i "s/^Name\[$DESKTOP_LANG\]=.*/Name[$DESKTOP_LANG]=$DESKTOP_NAME/" "$f"
+            else
+                sed -i "/^Name=Install Debian/a Name[$DESKTOP_LANG]=$DESKTOP_NAME" "$f"
+            fi
+        done
+    fi
 else
     apt-get purge -y calamares calamares-settings-debian || true
 fi
