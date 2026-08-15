@@ -454,19 +454,51 @@ apt-get install -y \
     ssh \
     host net-tools dnsutils lshw
 
+# Manpages/task-metapackage/mythes/myspell/hunspell de OUTRAS línguas são
+# sempre purgados (bloat de documentação, não afeta o idioma da interface),
+# EXCETO os da língua escolhida da ISO (ISO_LOCALE) — inglês nunca aparece
+# nessas listas, então já fica de fora naturalmente (fallback garantido).
+PURGE_OTHER_LANGS=(
+    manpages-de manpages-es manpages-fr manpages-hu manpages-it manpages-ja
+    manpages-mk manpages-nl manpages-pl manpages-ro manpages-tr manpages-zh
+    task-dutch task-german task-italian task-japanese task-macedonian
+    task-polish task-romanian task-spanish task-turkish
+    mythes-cs mythes-de mythes-de-ch mythes-fr mythes-it mythes-ne mythes-ru mythes-sk
+    myspell-es myspell-et myspell-fa myspell-ga myspell-he myspell-nb myspell-nn
+    myspell-sk myspell-sq myspell-uk
+)
+case "$ISO_LOCALE" in
+    es_ES.UTF-8) KEEP_LANG_PKGS=(manpages-es task-spanish myspell-es) ;;
+    fr_FR.UTF-8) KEEP_LANG_PKGS=(manpages-fr mythes-fr) ;;
+    de_DE.UTF-8) KEEP_LANG_PKGS=(manpages-de task-german mythes-de mythes-de-ch) ;;
+    it_IT.UTF-8) KEEP_LANG_PKGS=(manpages-it task-italian mythes-it) ;;
+    *) KEEP_LANG_PKGS=() ;;
+esac
+if [[ ${#KEEP_LANG_PKGS[@]} -gt 0 ]]; then
+    FILTERED_PURGE=()
+    for pkg in "${PURGE_OTHER_LANGS[@]}"; do
+        keep=0
+        for k in "${KEEP_LANG_PKGS[@]}"; do [[ "$pkg" == "$k" ]] && keep=1; done
+        [[ "$keep" -eq 0 ]] && FILTERED_PURGE+=("$pkg")
+    done
+    PURGE_OTHER_LANGS=("${FILTERED_PURGE[@]}")
+fi
+
 apt-get purge -y \
     sddm-theme-elarun sddm-theme-debian-elarun connman goldendict kasumi quassel \
     mozc-data mozc-server mozc-utils-gui uim meteo-qt meteo-qt-l10n \
     firefox-esr 'aspell*' 'libreoffice*' 'hyphen*' \
-    manpages-de manpages-es manpages-fr manpages-hu manpages-it manpages-ja \
-    manpages-mk manpages-nl manpages-pl manpages-ro manpages-tr manpages-zh \
-    task-dutch task-german task-italian task-japanese task-macedonian \
-    task-polish task-romanian task-spanish task-turkish \
-    mythes-cs mythes-de mythes-de-ch mythes-fr mythes-it mythes-ne mythes-ru mythes-sk \
-    myspell-es myspell-et myspell-fa myspell-ga myspell-he myspell-nb myspell-nn \
-    myspell-sk myspell-sq myspell-uk || true
+    "${PURGE_OTHER_LANGS[@]}" || true
 
-apt-get purge -y hunspell-fr hunspell-it hunspell-nl hunspell-ru hunspell-de-de fortunes-it || true
+# Mesma lógica para os hunspell de outras línguas com purge dedicada
+# (hunspell-$ISO_LANG_PKG é reinstalado explicitamente logo abaixo de
+# qualquer forma, mas evita a purga-e-reinstala desnecessária aqui).
+HUNSPELL_OTHER_LANGS=(hunspell-fr hunspell-it hunspell-nl hunspell-ru hunspell-de-de)
+FILTERED_HUNSPELL=()
+for pkg in "${HUNSPELL_OTHER_LANGS[@]}"; do
+    [[ "$pkg" == "hunspell-$ISO_LANG_PKG" ]] || FILTERED_HUNSPELL+=("$pkg")
+done
+apt-get purge -y "${FILTERED_HUNSPELL[@]}" fortunes-it || true
 
 apt-get install -y hunspell aspell libreoffice wget
 
