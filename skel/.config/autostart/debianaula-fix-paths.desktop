@@ -1,5 +1,5 @@
 [Desktop Entry]
-Exec=bash "$HOME/.local/bin/debianaula-fix-paths.sh"
+Exec=bash -c "$HOME/.local/bin/debianaula-fix-paths.sh"
 Name=DebianAula path fixup
 Type=Application
 NoDisplay=true
