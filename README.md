@@ -30,6 +30,12 @@ distraction-free environment out of the box.
 - **Live-only or live + installer**: choose at build time whether Calamares
   (with `calamares-settings-debian`, partitioning tools, GRUB, etc.) ships in
   the ISO, or whether it's stripped out for a smaller, install-free USB image.
+  When it does ship, the installer skips the "Usuários" step entirely — the
+  installed system keeps the live user's account (username/password set at
+  build time, see below) as-is, instead of prompting to create a new one.
+  This is deliberate: it avoids an entire class of bugs where a freshly
+  created account would inherit config files/caches that still hardcoded
+  the live-build username's path.
 - **Curated app set**: Firefox (Mozilla repo), VS Code, Neovim configured with
   [LazyVim](https://github.com/wyllianbs/LazyVim-Setup), Kate with
   [kate-quickrun](https://github.com/wyllianbs/kate-quickrun), Thonny, LibreOffice
@@ -72,7 +78,7 @@ distraction-free environment out of the box.
 | `customize-skel.sh` | Copies `skel/` into the chroot's `/etc/skel`, so the live user's home directory is pre-populated the moment it's created by `adduser` — no manual setup needed. Also patches the keyboard layout and language into the copied config (KDE's `kxkbrc`, `user-dirs.locale`, Thonny) to match the choices made in `build-iso.sh`. |
 | `customize-home.sh` | Runs automatically (as the live user, before the interactive step) to install things that need real commands rather than static config files: npm globals, LazyVim (re-clones [LazyVim-Setup](https://github.com/wyllianbs/LazyVim-Setup) fresh every build and overwrites `~/.config/nvim` with whatever's current there — see the `skel/` row for what happens if that clone fails), kate-quickrun (always fetching the *latest* GitHub release). |
 | `skel/` | The actual dotfiles/config template applied to every new build: Dolphin, Konsole (+ Catppuccin color schemes), Kate, KDE global settings (theme, panel, keyboard, screen lock, splash, wallpaper), VS Code, Thonny, conky, and a **fallback** LazyVim nvim config. That nvim copy is a snapshot, not a live source: on a normal build with network access, `customize-home.sh` clones LazyVim-Setup fresh and overwrites `skel/`'s copy entirely in `~/.config/nvim` — the live clone always wins. `skel/`'s copy only matters if that clone fails (no network), so nvim isn't left completely unconfigured. Edit files here directly to change what ships by default — no need to touch `build-iso.sh`. |
-| `config/` | Editable data driving the build, kept separate from the script logic: `packages.json` (install/purge lists, alphabetical, grouped by why they apply), `languages.json` (one entry per supported ISO language — locale, package suffixes, boot/Calamares labels), `firefox-policies.json` (the policy file in its native format), `build.json` (`debian_iso_version`: `"latest"` or a pinned version), and `boot/*.cfg.tmpl` (the grub/isolinux menu templates). See [Configuring the build](#configuring-the-build). |
+| `config/` | Editable data driving the build, kept separate from the script logic: `packages.json` (install/purge lists, alphabetical, grouped by why they apply), `languages.json` (one entry per supported ISO language — locale, package suffixes, Firefox locale code, boot/Calamares labels), `firefox-policies.json` (the policy file in its native format — `build-iso.sh` additionally injects a locked `intl.locale.requested` into it at build time, from `languages.json`'s `firefox_locale`, unless the chosen language is English), `build.json` (`debian_iso_version`: `"latest"` or a pinned version), and `boot/*.cfg.tmpl` (the grub/isolinux menu templates). See [Configuring the build](#configuring-the-build). |
 
 ## Installation
 
@@ -411,9 +417,12 @@ touch `build-iso.sh`'s logic:
   alphabetical.
 - **New ISO language**: add one entry to `config/languages.json` (locale,
   language package suffix, hunspell package if it differs, manpages/task/
-  mythes to keep from the other-language cleanup, the Calamares icon's
-  translated name, and the boot menu label). That's the only place it
-  needs to be added — `build-iso.sh` reads everything from there.
+  mythes to keep from the other-language cleanup, the Firefox locale code
+  for `intl.locale.requested` (e.g. `pt-BR`, matching how Mozilla names
+  that language's langpack — see the `firefox-l10n-*` packages), the
+  Calamares icon's translated name, and the boot menu label). That's the
+  only place it needs to be added — `build-iso.sh` reads everything from
+  there.
 - **Firefox policy changes**: edit `config/firefox-policies.json` directly
   (it's the real policy file, not a template) — see
   [Mozilla's policy reference](https://mozilla.github.io/policy-templates/)
@@ -435,16 +444,17 @@ touch `build-iso.sh`'s logic:
   `build-iso.sh` fails fast with a clear error, instead of producing a
   silently broken result, if the new base ISO is missing the classic
   installer menu files (`install.cfg`, `install_start.cfg`,
-  `utilities.cfg`, `stdmenu.cfg`) or the Calamares `removeuser` module —
-  but that only covers those two known-fragile points. Before building a
-  course on a new pinned version, always also:
+  `utilities.cfg`, `stdmenu.cfg`) — but that only covers that one
+  known-fragile point. Before building a course on a new pinned version,
+  always also:
   - Run a full build in both modes (`install` and `live-only`).
   - Boot both resulting ISOs for real (see "Testing the ISO" above) —
     check the boot menu (all entries, including Advanced install
     options), that the classic Debian-Installer path still works.
-  - Complete a real Calamares install and confirm: username matching the
-    live user doesn't create a duplicate, Firefox opens in the chosen ISO
-    language, conky autostarts, Dolphin opens at the new user's home.
+  - Complete a real Calamares install and confirm: it skips straight from
+    partitioning to the summary screen (no "Usuários" step — see
+    "What you get" above), Firefox opens in the chosen ISO language, conky
+    autostarts, Dolphin opens at the live user's home.
   - Diff `config/boot/*.tmpl` wording against the new base ISO's own
     `isolinux/*.cfg`/`boot/grub/*.cfg`, in case Debian changed labels or
     added/removed entries worth carrying over.
