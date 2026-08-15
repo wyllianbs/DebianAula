@@ -937,6 +937,20 @@ prompt 0
 timeout 50
 EOF
 
+# Rótulo da nossa entrada de boot, no idioma escolhido para a ISO
+# (ISO_LOCALE). As entradas originais do Debian (Live, Advanced install
+# options, Utilities...) ficam em inglês de propósito — são arquivos do
+# Debian que preferimos não "forkar" traduzidos, mesmo comportamento da
+# ISO oficial (só o instalador em si, depois de aberto, é traduzido).
+case "$ISO_LOCALE" in
+    pt_BR.UTF-8) BOOT_ENTRY_LABEL="DebianAula (live / instalar)" ;;
+    es_ES.UTF-8) BOOT_ENTRY_LABEL="DebianAula (live / instalar)" ;;
+    fr_FR.UTF-8) BOOT_ENTRY_LABEL="DebianAula (live / installer)" ;;
+    de_DE.UTF-8) BOOT_ENTRY_LABEL="DebianAula (live / installieren)" ;;
+    it_IT.UTF-8) BOOT_ENTRY_LABEL="DebianAula (live / installa)" ;;
+    *)           BOOT_ENTRY_LABEL="DebianAula (live / install)" ;;
+esac
+
 if [[ "$ISO_MODE" == "install" ]]; then
     # Modo live + instalador: mantém as entradas originais do Debian Live
     # (live normal, fail-safe, e o submenu inteiro do Debian-Installer
@@ -949,7 +963,7 @@ if [[ "$ISO_MODE" == "install" ]]; then
     sudo tee iso/boot/grub/grub.cfg > /dev/null << 'EOF'
 source /boot/grub/config.cfg
 
-menuentry "DebianAula (live / instalar)" --hotkey=d {
+menuentry "__BOOT_ENTRY_LABEL__" --hotkey=d {
 	linux	/live/vmlinuz boot=live hostname=DebianAula components quiet splash overlay-size=50% video=1440x900@60
 	initrd	/live/initrd.img
 }
@@ -998,10 +1012,11 @@ submenu 'Utilities...' --hotkey=u {
 	fi
 }
 EOF
+    sudo sed -i "s/__BOOT_ENTRY_LABEL__/$BOOT_ENTRY_LABEL/" iso/boot/grub/grub.cfg
 
     sudo tee iso/isolinux/live.cfg > /dev/null << 'EOF'
 label DebianAula
-	menu label ^DebianAula (live / instalar)
+	menu label ^__BOOT_ENTRY_LABEL__
 	menu default
 	linux /live/vmlinuz boot=live
 	initrd /live/initrd.img
@@ -1019,6 +1034,7 @@ label live-amd64-failsafe
 	initrd /live/initrd.img
 	append boot=live components memtest noapic noapm nodma nomce nosmp nosplash vga=788
 EOF
+    sudo sed -i "s/__BOOT_ENTRY_LABEL__/$BOOT_ENTRY_LABEL/" iso/isolinux/live.cfg
 
     sudo tee iso/isolinux/menu.cfg > /dev/null << 'EOF'
 menu hshift 0
