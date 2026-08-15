@@ -865,6 +865,16 @@ if [[ "$ISO_MODE" == "install" ]]; then
         -cf - . | sudo tar -xf - -C ../../etc/skel )
     sudo chown -R root:root squashfs-root/etc/skel
 
+    # Marcador lido por skel/.local/bin/debianaula-fix-paths.sh (rodado via
+    # autostart no primeiro login de QUALQUER usuário criado neste sistema
+    # -- o do Calamares e também os que vierem a ser criados depois, já
+    # que /etc/skel é a fonte do useradd/adduser pra qualquer conta nova):
+    # se algum arquivo escapou do espelho acima com /home/$LIVE_USER
+    # gravado dentro, o script corrige sozinho no primeiro login, sem
+    # depender de a gente prever cada caso em build-iso.sh.
+    echo "$LIVE_USER" | sudo tee squashfs-root/etc/skel/.debianaula-live-user >/dev/null
+    sudo chown root:root squashfs-root/etc/skel/.debianaula-live-user
+
     # Rede de segurança: o espelho acima copia QUALQUER arquivo do home da
     # sessão live, e não há como prever de antemão todo app do KDE que
     # grava caminho absoluto num cache/histórico (já pegamos o
