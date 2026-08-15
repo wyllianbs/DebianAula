@@ -844,7 +844,10 @@ sudo chroot squashfs-root chown -R "$LIVE_USER:$LIVE_USER" "/home/$LIVE_USER" ||
 # (1G.raw), o perfil do Firefox (o projeto propositalmente não envia
 # perfil pronto — ver policies.json — copiar aqui vazaria histórico/
 # cookies/senhas da sessão de build), histórico de shell, caches e lixo
-# de sessão.
+# de sessão, e o user-places.xbel do KDE (gerado pela sessão live com o
+# caminho /home/$LIVE_USER deste build gravado dentro -- herdar isso faria
+# o Dolphin de outro usuário abrir num /home/<nome-antigo> inexistente; o
+# KDE recria esse arquivo sozinho, corretamente, no primeiro login).
 if [[ "$ISO_MODE" == "install" ]]; then
     msg "    Espelhando a home do usuário live inteira para /etc/skel (usuário criado na instalação)..." "    Mirroring the whole live user's home into /etc/skel (the user created at install time)..."
     sudo rm -rf squashfs-root/etc/skel
@@ -858,6 +861,7 @@ if [[ "$ISO_MODE" == "install" ]]; then
         --exclude='./.ICEauthority' \
         --exclude='./.local/share/Trash' \
         --exclude='./.local/share/sddm' \
+        --exclude='./.local/share/user-places.xbel' \
         -cf - . | sudo tar -xf - -C ../../etc/skel )
     sudo chown -R root:root squashfs-root/etc/skel
 fi
