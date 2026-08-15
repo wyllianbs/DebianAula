@@ -797,6 +797,24 @@ sudo chmod +x squashfs-root/tmp/customize-home.sh
 sudo chroot squashfs-root su - "$LIVE_USER" -c "LANG_MODE=$LANG_MODE bash /tmp/customize-home.sh"
 sudo rm -f squashfs-root/tmp/customize-home.sh
 
+# customize-home.sh só grava na home do usuário live — /etc/skel (usado
+# pelo adduser do live E pelo módulo "users" do Calamares num install)
+# nunca recebia conky/LazyVim, só o que customize-skel.sh copiou antes.
+# Resultado: qualquer usuário criado pelo Calamares (mesmo com nome
+# diferente do live) ficava sem conky/nvim. Espelha os artefatos gerados
+# pelo customize-home.sh para /etc/skel também, best-effort (alguns podem
+# não existir, ex: se o clone do LazyVim falhou).
+msg "    Espelhando conky/nvim gerados para /etc/skel (usuários futuros, incl. instalação)..." "    Mirroring generated conky/nvim into /etc/skel (future users, incl. install)..."
+HOME_SRC="squashfs-root/home/$LIVE_USER"
+SKEL_DST="squashfs-root/etc/skel"
+for item in .conky .config/autostart/conky.desktop .config/nvim .local/share/nvim .local/state/nvim; do
+    if [[ -e "$HOME_SRC/$item" ]]; then
+        sudo mkdir -p "$(dirname "$SKEL_DST/$item")"
+        sudo cp -a "$HOME_SRC/$item" "$SKEL_DST/$item"
+    fi
+done
+sudo chown -R root:root "$SKEL_DST"
+
 echo
 msg ">>> Entrando no ambiente do usuário '$LIVE_USER' (interativo)." ">>> Entering '$LIVE_USER' user environment (interactive)."
 msg "    - Um X aninhado (Xephyr, display :2) vai abrir numa janela na sua" "    - A nested X server (Xephyr, display :2) will open in a window on"
