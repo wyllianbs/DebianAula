@@ -864,6 +864,22 @@ if [[ "$ISO_MODE" == "install" ]]; then
         --exclude='./.local/share/user-places.xbel' \
         -cf - . | sudo tar -xf - -C ../../etc/skel )
     sudo chown -R root:root squashfs-root/etc/skel
+
+    # Rede de segurança: o espelho acima copia QUALQUER arquivo do home da
+    # sessão live, e não há como prever de antemão todo app do KDE que
+    # grava caminho absoluto num cache/histórico (já pegamos o
+    # user-places.xbel do Dolphin dessa forma). Em vez de só descobrir o
+    # próximo caso numa instalação real, avisa aqui, cedo, com o(s)
+    # arquivo(s) exato(s) -- não falha o build (pode ser inofensivo, ex.
+    # histórico "recentemente usado"), só chama atenção pra revisar.
+    LEFTOVER_PATH_FILES=$(sudo grep -rlZ "/home/$LIVE_USER" squashfs-root/etc/skel 2>/dev/null | tr '\0' '\n' || true)
+    if [[ -n "$LEFTOVER_PATH_FILES" ]]; then
+        msg "!!! AVISO: arquivo(s) em /etc/skel ainda referenciam /home/$LIVE_USER" "!!! WARNING: file(s) in /etc/skel still reference /home/$LIVE_USER"
+        echo "$LEFTOVER_PATH_FILES" | sed 's/^/!!!   - /'
+        msg "!!! (caminho do usuário live deste build). Um usuário criado pelo" "!!! (this build's live username). A user created by Calamares with a"
+        msg "!!! Calamares com outro nome pode ter problemas com esse(s)" "!!! different name may have issues with that/those file(s) -- consider"
+        msg "!!! arquivo(s) -- considere excluí-lo(s) do espelho acima." "!!! excluding it/them from the mirror above."
+    fi
 fi
 
 # ============================================================ #
