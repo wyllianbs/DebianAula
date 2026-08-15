@@ -430,9 +430,24 @@ touch `build-iso.sh`'s logic:
   guarantees it — the base ISO's boot menu files (isolinux/grub), package
   names, and the `live-boot`/`live-config`/Calamares versions it ships can
   all change between releases. A major version bump (e.g. to trixie's
-  successor) should be assumed to need manual review. Always test a full
-  build and a real boot after changing the pinned version, before
-  building a course on it.
+  successor) should be assumed to need manual review.
+
+  `build-iso.sh` fails fast with a clear error, instead of producing a
+  silently broken result, if the new base ISO is missing the classic
+  installer menu files (`install.cfg`, `install_start.cfg`,
+  `utilities.cfg`, `stdmenu.cfg`) or the Calamares `removeuser` module —
+  but that only covers those two known-fragile points. Before building a
+  course on a new pinned version, always also:
+  - Run a full build in both modes (`install` and `live-only`).
+  - Boot both resulting ISOs for real (see "Testing the ISO" above) —
+    check the boot menu (all entries, including Advanced install
+    options), that the classic Debian-Installer path still works.
+  - Complete a real Calamares install and confirm: username matching the
+    live user doesn't create a duplicate, Firefox opens in the chosen ISO
+    language, conky autostarts, Dolphin opens at the new user's home.
+  - Diff `config/boot/*.tmpl` wording against the new base ISO's own
+    `isolinux/*.cfg`/`boot/grub/*.cfg`, in case Debian changed labels or
+    added/removed entries worth carrying over.
 
 ## Customizing further
 

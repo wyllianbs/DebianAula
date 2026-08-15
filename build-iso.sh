@@ -579,6 +579,27 @@ if [[ "$ISO_MODE" == "install" ]]; then
     # que o novo usuário já foi criado — removendo o usuário live da
     # instalação final. Config: só a chave "username" (confirmado via
     # strings no libcalamares_job_removeuser.so).
+    # Se uma versão futura do pacote calamares parar de trazer esse job
+    # compilado, habilitar "removeuser" no settings.conf sem ele presente
+    # falharia silenciosamente (a instalação simplesmente ignoraria o
+    # módulo desconhecido) e o bug do usuário duplicado voltaria. Falha
+    # aqui, cedo e com mensagem clara, em vez de deixar isso pra alguém
+    # descobrir só depois, numa instalação real.
+    if ! find /usr/lib -iname 'libcalamares_job_removeuser.so*' 2>/dev/null | grep -q .; then
+        echo "!!! ERRO: módulo 'removeuser' do Calamares não encontrado nesta" >&2
+        echo "!!! versão da ISO base (libcalamares_job_removeuser.so ausente)." >&2
+        echo "!!! Sem ele, instalar com o mesmo nome do usuário live falha" >&2
+        echo "!!! (useradd: user already exists). Revise config/build.json" >&2
+        echo "!!! (debian_iso_version) ou o build-iso.sh antes de prosseguir." >&2
+        echo "!!! ERROR: Calamares 'removeuser' module not found in this base" >&2
+        echo "!!! ISO version (libcalamares_job_removeuser.so missing)." >&2
+        echo "!!! Without it, installing with the same username as the live" >&2
+        echo "!!! user fails (useradd: user already exists). Review" >&2
+        echo "!!! config/build.json (debian_iso_version) or build-iso.sh" >&2
+        echo "!!! before continuing." >&2
+        exit 1
+    fi
+
     cat > /etc/calamares/modules/removeuser.conf << EOF
 ---
 username: $LIVE_USER
@@ -945,6 +966,34 @@ sudo chmod 644 iso/live/vmlinuz
 sudo cp "$CONFIG_DIR/boot/isolinux.cfg.tmpl" iso/isolinux/isolinux.cfg
 
 if [[ "$ISO_MODE" == "install" ]]; then
+    # Nossos templates "install" referenciam (include/source), mas não
+    # geram, esses arquivos do Debian-Installer clássico -- eles têm que
+    # já vir na ISO base. Se uma versão futura parar de trazer algum, o
+    # menu de boot fica quebrado silenciosamente (entrada faltando ou
+    # source apontando pra nada) só percebido ao testar o boot real.
+    # Falha aqui, cedo e com mensagem clara, em vez disso.
+    MISSING_BOOT_FILES=()
+    for f in \
+        iso/boot/grub/install.cfg iso/boot/grub/install_start.cfg \
+        iso/isolinux/install.cfg iso/isolinux/utilities.cfg \
+        iso/isolinux/stdmenu.cfg
+    do
+        [[ -f "$f" ]] || MISSING_BOOT_FILES+=("$f")
+    done
+    if (( ${#MISSING_BOOT_FILES[@]} > 0 )); then
+        echo "!!! ERRO: a ISO base não traz os arquivos do menu de instalação" >&2
+        echo "!!! clássico que config/boot/*install*.tmpl espera encontrar:" >&2
+        printf '!!!   - %s\n' "${MISSING_BOOT_FILES[@]}" >&2
+        echo "!!! Revise config/build.json (debian_iso_version) ou os" >&2
+        echo "!!! templates em config/boot/ antes de prosseguir." >&2
+        echo "!!! ERROR: the base ISO does not ship the classic installer" >&2
+        echo "!!! menu files that config/boot/*install*.tmpl expects:" >&2
+        printf '!!!   - %s\n' "${MISSING_BOOT_FILES[@]}" >&2
+        echo "!!! Review config/build.json (debian_iso_version) or the" >&2
+        echo "!!! templates in config/boot/ before continuing." >&2
+        exit 1
+    fi
+
     sudo cp "$CONFIG_DIR/boot/grub-install.cfg.tmpl" iso/boot/grub/grub.cfg
     sudo cp "$CONFIG_DIR/boot/live-install.cfg.tmpl" iso/isolinux/live.cfg
     sudo cp "$CONFIG_DIR/boot/menu-install.cfg.tmpl" iso/isolinux/menu.cfg
