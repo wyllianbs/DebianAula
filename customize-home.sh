@@ -42,7 +42,7 @@ cat > ~/.conky/start.sh << 'EOF'
 > "$HOME/.conky/conky.log"
 
 sleep 5s &&
-pkill conky
+pkill -u "$(whoami)" conky
 conky -c ~/.conky/settings.lua 2> "$HOME/.conky/conky.log" &
 EOF
 chmod +x ~/.conky/start.sh

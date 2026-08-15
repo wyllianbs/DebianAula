@@ -19,6 +19,12 @@ distraction-free environment out of the box.
 > Want a different language/keyboard/timezone, or to audit exactly what
 > goes into the image? Build it yourself — see [Installation](#installation).
 
+> [!WARNING]
+> **Run `build-iso.sh` inside a VM, never on bare metal.** The build uses
+> `chroot`, which does **not** fully isolate the build from your real
+> machine — see [Run the build inside a VM](#run-the-build-inside-a-vm-required)
+> for why, and for a real incident this caused.
+
 ## What you get
 
 - **Live-only or live + installer**: choose at build time whether Calamares
@@ -68,10 +74,53 @@ distraction-free environment out of the box.
 
 ## Installation
 
+### Run the build inside a VM (required)
+
+**Run `build-iso.sh` on a disposable VM, not on your real machine.** This
+isn't generic caution — it happened: an interrupted `install`-mode build
+once left the *real host's* UEFI boot order changed (Windows became the
+first entry instead of Debian), and Wi-Fi/audio got toggled off on the
+host mid-build, from a run that was never supposed to touch anything
+outside the build directory.
+
+**Why this can happen at all:** the build uses `chroot` to configure the
+target filesystem, and `chroot` only changes what a process sees as `/` —
+it does **not** give the process its own process list, device tree, or
+D-Bus/systemd session. Concretely:
+
+- `/proc` is bind-mounted from the host, so the chroot shares the host's
+  **process table**. A package's maintainer script calling `pkill`/`killall`
+  by process name (common for reloading audio/network daemons) can match
+  and kill the *host's* real process of the same name, not just the one
+  inside the build.
+- `/sys` reflects the **same live kernel/hardware state** everywhere it's
+  mounted — that's how sysfs works, it isn't namespaced by mount alone.
+  Something writing to e.g. `/sys/class/rfkill/*/state` from inside the
+  chroot (a Bluetooth/Wi-Fi widget in the interactive desktop step, for
+  example) toggles the *real* radio on your machine.
+- Earlier versions of this script additionally bind-mounted `/dev` and
+  `/run` wholesale, exposing the host's **real disks** and its **real
+  D-Bus/systemd session** inside the chroot — installing `grub-efi`/
+  `os-prober` (only in the live + installer mode) in that state is what
+  actually rewrote the host's UEFI NVRAM. `build-iso.sh` no longer does
+  this (`/dev` is now a minimal synthetic set, `/run` a private tmpfs,
+  and `grub-install`/`update-grub`/`os-prober` are diverted to no-ops for
+  the duration of the chroot), which closes the specific incident above.
+
+That fix closes the vectors we found, but it's not a hard guarantee — the
+`/proc` and `/sys` sharing described above is inherent to how `chroot`
+works and can't be fully closed without much heavier isolation (separate
+PID/network namespaces, or a real container runtime) that this project
+doesn't implement. **A VM is the only guarantee that nothing this script
+does — including anything not yet discovered — can reach your real
+hardware.** Worst case inside a VM: you revert a snapshot or discard the
+disk image. See [Testing the ISO](#testing-the-iso) below for QEMU setup;
+the same VM works for running the build itself, not just for booting the
+resulting ISO.
+
 ### Prerequisites
 
-The build must run on a **Debian-based host with KDE Plasma** (bare metal or
-VM) that has:
+The build must run on a **Debian-based VM with KDE Plasma** that has:
 
 - A **real TTY** — not a background process or CI runner. The build pauses
   for interactive input more than once.

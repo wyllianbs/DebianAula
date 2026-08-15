@@ -307,13 +307,34 @@ sudo chmod +x squashfs-root/usr/sbin/policy-rc.d
 
 xhost +
 
+# IMPORTANTE: nunca damos bind-mount no /sys, /dev ou /run REAIS do host
+# aqui. Um chroot não isola PID/mount/D-Bus por padrão — um bind-mount
+# desses diretórios tornaria a NVRAM UEFI real (squashfs-root/sys/firmware/
+# efi/efivars), os discos reais (squashfs-root/dev/sda etc.) e o D-Bus/
+# systemd real do host (squashfs-root/run) diretamente alcançáveis de
+# dentro do chroot — o suficiente para um pacote como grub-efi/os-prober
+# reconfigurar o boot real da máquina. Em vez disso, cada um recebe uma
+# montagem isolada e mínima, sem nenhum vínculo com o host.
 sudo mount --bind /proc squashfs-root/proc
-sudo mount --bind /sys  squashfs-root/sys
-sudo mount --bind /run  squashfs-root/run
-sudo mount --bind /dev  squashfs-root/dev
-sudo mount --bind /dev/pts squashfs-root/dev/pts
+
+sudo mount -t sysfs sysfs squashfs-root/sys
+
+sudo mkdir -p squashfs-root/run
+sudo mount -t tmpfs -o mode=0755 tmpfs squashfs-root/run
+
+sudo mount -t tmpfs -o mode=0755 tmpfs squashfs-root/dev
+sudo mknod -m 666 squashfs-root/dev/null    c 1 3
+sudo mknod -m 666 squashfs-root/dev/zero    c 1 5
+sudo mknod -m 666 squashfs-root/dev/full    c 1 7
+sudo mknod -m 666 squashfs-root/dev/random  c 1 8
+sudo mknod -m 666 squashfs-root/dev/urandom c 1 9
+sudo mknod -m 666 squashfs-root/dev/tty     c 5 0
+sudo mknod -m 600 squashfs-root/dev/console c 5 1
+sudo mknod -m 666 squashfs-root/dev/ptmx    c 5 2
+sudo mkdir -p squashfs-root/dev/pts
+sudo mount -t devpts -o gid=5,mode=620 devpts squashfs-root/dev/pts
 sudo mkdir -p squashfs-root/dev/shm
-sudo mount --bind /dev/shm squashfs-root/dev/shm
+sudo mount -t tmpfs tmpfs squashfs-root/dev/shm
 
 cleanup() {
     local exit_code=$?
@@ -386,6 +407,15 @@ chown -R sddm:sddm /var/lib/sddm 2>/dev/null || true
 dbus-uuidgen > /var/lib/dbus/machine-id
 dpkg-divert --local --rename --add /sbin/initctl
 ln -sf /bin/true /sbin/initctl
+
+# Segunda camada de proteção (além do /sys isolado acima): mesmo que os
+# pacotes grub-efi-amd64-bin/grub-pc-bin/os-prober sejam instalados (modo
+# "install"), seus binários nunca devem rodar de verdade dentro do chroot —
+# o bootloader da ISO final é montado à parte, via heredoc mais abaixo.
+for bin in /usr/sbin/grub-install /usr/sbin/grub-mkconfig /usr/sbin/update-grub /usr/bin/os-prober; do
+    dpkg-divert --local --rename --add "$bin" 2>/dev/null || true
+    ln -sf /bin/true "$bin"
+done
 
 cat > /etc/apt/sources.list << 'EOF'
 deb http://deb.debian.org/debian/ trixie main contrib non-free non-free-firmware
@@ -556,9 +586,11 @@ cp /etc/firefox/policies.json /usr/lib/firefox/distribution/policies.json
 
 apt-get purge -y im-config || true
 
-# Bluetooth desativado por padrão
-systemctl disable bluetooth.service 2>/dev/null || true
-systemctl mask bluetooth.service 2>/dev/null || true
+# Bluetooth desativado por padrão. SYSTEMD_OFFLINE=1 força o systemctl a
+# só mexer nos symlinks dentro do chroot, sem tentar falar com o systemd
+# real do host (mesmo com /run isolado acima, essa é uma segunda camada).
+SYSTEMD_OFFLINE=1 systemctl disable bluetooth.service 2>/dev/null || true
+SYSTEMD_OFFLINE=1 systemctl mask bluetooth.service 2>/dev/null || true
 
 # VS Code (repo Microsoft via extrepo)
 extrepo enable vscode
@@ -575,7 +607,7 @@ apt-get update
 
 # Desabilita apache, caso tenha sido instalado como dependência
 rm -f /etc/init.d/apache*
-systemctl disable apache2 2>/dev/null || true
+SYSTEMD_OFFLINE=1 systemctl disable apache2 2>/dev/null || true
 update-rc.d apache2 disable 2>/dev/null || true
 update-rc.d -f apache remove 2>/dev/null || true
 update-rc.d -f apache2 remove 2>/dev/null || true
@@ -784,6 +816,15 @@ rm -rf /var/cache/apt/archives/*
 rm -f /var/lib/dbus/machine-id
 rm -f /sbin/initctl
 dpkg-divert --rename --remove /sbin/initctl
+
+# Restaura os binários reais do grub/os-prober diverted lá no início — se
+# o usuário instalar via Calamares depois, o grub-install/update-grub
+# precisam funcionar de verdade no sistema já instalado (rodando fora
+# deste chroot, na máquina de destino real).
+for bin in /usr/sbin/grub-install /usr/sbin/grub-mkconfig /usr/sbin/update-grub /usr/bin/os-prober; do
+    rm -f "$bin"
+    dpkg-divert --rename --remove "$bin" 2>/dev/null || true
+done
 
 > /etc/resolv.conf
 cd /
