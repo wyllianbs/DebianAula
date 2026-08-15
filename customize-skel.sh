@@ -49,7 +49,7 @@ sudo chown -R root:root "$SKEL_DST"
 # Os arquivos em skel/ foram capturados com o usuário "ufsc" (usado durante
 # o desenvolvimento). Troca para o usuário live escolhido nesta build, em
 # qualquer arquivo de texto que referencie /home/ufsc (ex: user-places.xbel).
-sudo grep -rlZ "ufsc" "$SKEL_DST" 2>/dev/null | sudo xargs -0 -r sed -i "s/ufsc/$LIVE_USER/g"
+sudo grep -rlZ "ufsc" "$SKEL_DST" 2>/dev/null | sudo xargs -0 -r sed -i "s/ufsc/$LIVE_USER/g" || true
 
 # kxkbrc traz o layout de teclado da sessão KDE (o skel/ foi capturado com
 # "br"). Ajusta para o layout escolhido nesta build, se for diferente.
