@@ -569,53 +569,17 @@ if [[ "$ISO_MODE" == "install" ]]; then
         done
     fi
 
-    # Sem isso, a instalação fica com DOIS usuários: o "$LIVE_USER" da
-    # sessão live (já dentro do squashfs clonado pelo Calamares) e o que
-    # a pessoa cria na etapa "Usuários" — e se ela usar o mesmo nome do
-    # usuário live, o passo de criação de usuário falha (useradd: user
-    # already exists). O módulo "removeuser" do Calamares (job C++, já
-    # vem no pacote calamares, só não habilitado por padrão no Debian)
-    # roda "userdel" no usuário indicado, no sistema de destino, depois
-    # que o novo usuário já foi criado — removendo o usuário live da
-    # instalação final. Config: só a chave "username" (confirmado via
-    # strings no libcalamares_job_removeuser.so).
-    # Se uma versão futura do pacote calamares parar de trazer esse job
-    # compilado, habilitar "removeuser" no settings.conf sem ele presente
-    # falharia silenciosamente (a instalação simplesmente ignoraria o
-    # módulo desconhecido) e o bug do usuário duplicado voltaria. Falha
-    # aqui, cedo e com mensagem clara, em vez de deixar isso pra alguém
-    # descobrir só depois, numa instalação real.
-    if ! find /usr/lib -iname 'libcalamares_job_removeuser.so*' 2>/dev/null | grep -q .; then
-        echo "!!! ERRO: módulo 'removeuser' do Calamares não encontrado nesta" >&2
-        echo "!!! versão da ISO base (libcalamares_job_removeuser.so ausente)." >&2
-        echo "!!! Sem ele, instalar com o mesmo nome do usuário live falha" >&2
-        echo "!!! (useradd: user already exists). Revise config/build.json" >&2
-        echo "!!! (debian_iso_version) ou o build-iso.sh antes de prosseguir." >&2
-        echo "!!! ERROR: Calamares 'removeuser' module not found in this base" >&2
-        echo "!!! ISO version (libcalamares_job_removeuser.so missing)." >&2
-        echo "!!! Without it, installing with the same username as the live" >&2
-        echo "!!! user fails (useradd: user already exists). Review" >&2
-        echo "!!! config/build.json (debian_iso_version) or build-iso.sh" >&2
-        echo "!!! before continuing." >&2
-        exit 1
-    fi
-
-    cat > /etc/calamares/modules/removeuser.conf << EOF
----
-username: $LIVE_USER
-EOF
-    # Insere "removeuser" na sequência 'exec' (fase de jobs), logo após
-    # "users" — só ali, não na ocorrência de "users" na fase 'show' (UI).
-    # Idempotente: se já foi inserido numa build anterior reaproveitando
-    # este squashfs-root, não insere de novo (duplicaria o job).
-    if ! grep -q "^  - removeuser$" /etc/calamares/settings.conf; then
-        awk '
-            /^- exec:/ { in_exec=1 }
-            in_exec && /^- show:/ { in_exec=0 }
-            { print }
-            in_exec && $0 == "  - users" { print "  - removeuser" }
-        ' /etc/calamares/settings.conf > /etc/calamares/settings.conf.new
-        mv /etc/calamares/settings.conf.new /etc/calamares/settings.conf
+    # A instalação reaproveita o próprio usuário live (já dentro do
+    # squashfs clonado pelo Calamares) em vez de criar um usuário novo --
+    # elimina de vez a classe inteira de bug de "usuário novo herdando
+    # caminho/config do usuário antigo" (Dolphin, conky etc.), ao custo de
+    # não poder escolher nome de usuário na instalação (senha continua a
+    # mesma definida em LIVE_PASSWORD neste build). Pra isso, remove a
+    # etapa "users" tanto da sequência 'show' (UI) quanto 'exec' (jobs) do
+    # settings.conf -- sem ela, o Calamares nunca tenta criar outra conta,
+    # então também não precisa mais do módulo "removeuser".
+    if grep -q "^  - users$" /etc/calamares/settings.conf; then
+        sed -i '/^  - users$/d' /etc/calamares/settings.conf
     fi
 else
     apt-get purge -y $PURGE_LIVE_MODE_ONLY || true
