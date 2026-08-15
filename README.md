@@ -424,7 +424,15 @@ touch `build-iso.sh`'s logic:
 - **Pin the base Debian ISO version**: set `debian_iso_version` in
   `config/build.json` to a specific version (e.g. `"13.6.0"`) instead of
   `"latest"`, to freeze what a course is built on instead of always
-  tracking the newest Debian Live release.
+  tracking the newest Debian Live release. This project has been tested
+  against `debian-live-13.6.0-amd64-kde.iso`. Later point releases of the
+  same major version (13.x) are likely to work as-is, but nothing
+  guarantees it — the base ISO's boot menu files (isolinux/grub), package
+  names, and the `live-boot`/`live-config`/Calamares versions it ships can
+  all change between releases. A major version bump (e.g. to trixie's
+  successor) should be assumed to need manual review. Always test a full
+  build and a real boot after changing the pinned version, before
+  building a course on it.
 
 ## Customizing further
 
