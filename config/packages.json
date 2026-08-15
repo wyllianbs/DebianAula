@@ -2,6 +2,23 @@
   "_comment_pt": "Listas de pacotes usadas por build-iso.sh. Ordem alfabética dentro de cada lista para facilitar diff/manutenção. Pacotes de idioma (hunspell/aspell/libreoffice-l10n/hyphen/firefox-l10n por sufixo) continuam parametrizados em bash a partir de languages.json, não listados aqui.",
   "_comment_en": "Package lists used by build-iso.sh. Alphabetical order within each list to ease diffing/maintenance. Language packages (hunspell/aspell/libreoffice-l10n/hyphen/firefox-l10n by suffix) stay parameterized in bash from languages.json, not listed here.",
 
+  "host_install_note_pt": "jq NÃO está nesta lista de propósito -- é instalado à parte, bem no início do script, porque é o próprio jq que lê este arquivo (problema do ovo e da galinha).",
+  "host_install_note_en": "jq is deliberately NOT in this list -- it's installed separately, right at the start of the script, since jq itself is what reads this file (chicken-and-egg).",
+  "host_install": [
+    "atop",
+    "bindfs",
+    "cloud-init",
+    "fakeroot",
+    "htop",
+    "isolinux",
+    "squashfs-tools",
+    "syslinux",
+    "syslinux-efi",
+    "vim",
+    "xorriso",
+    "xserver-xephyr"
+  ],
+
   "install": {
     "always": [
       "ark",

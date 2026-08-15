@@ -1,0 +1,25 @@
+#! /bin/bash
+### BEGIN INIT INFO
+# Provides:          cleaning
+# Required-Start:
+# Required-Stop:
+# Default-Start:     2 3 4 5
+# Default-Stop:
+# Short-Description: cleaning file into /home/__LIVE_USER__/
+# Description: cleaning file into /home/__LIVE_USER__/
+### END INIT INFO
+case "$1" in
+  start)
+    echo "Starting cleaning..."
+    rm -rf /home/__LIVE_USER__/*.raw
+    ;;
+  stop)
+    echo "Stopping cleaning..."
+    sleep 2
+    ;;
+  *)
+    echo "Usage: /etc/init.d/cleaning {start|stop}"
+    exit 1
+    ;;
+esac
+exit 0

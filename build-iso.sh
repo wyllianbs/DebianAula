@@ -15,7 +15,6 @@ set -euo pipefail
 
 WORKDIR="$(pwd)"
 CONFIG_DIR="$WORKDIR/config"
-BASE_URL="https://cdimage.debian.org/debian-cd/current-live/amd64/iso-hybrid"
 
 # Script bilíngue (pt/en): detecta o idioma pelo $LANG/$LANGUAGE do sistema
 # onde o build está rodando. Isso é só para as MENSAGENS do build-iso.sh
@@ -45,6 +44,8 @@ msg ">>> Diretório de trabalho: $WORKDIR" ">>> Working directory: $WORKDIR"
 # base) usados logo abaixo, antes da etapa [2/8] que instala o resto das
 # dependências do host — por isso é instalado aqui, cedo.
 command -v jq >/dev/null || { msg ">>> Instalando jq (necessário para ler config/*.json)..." ">>> Installing jq (needed to read config/*.json)..."; sudo apt-get update -qq && sudo apt-get install -y jq; }
+
+BASE_URL=$(jq -r '.debian_base_url' "$CONFIG_DIR/build.json")
 
 read -rp "$(mp "Nome do usuário da ISO live [debian]: " "Live ISO username [debian]: ")" LIVE_USER
 LIVE_USER="${LIVE_USER:-debian}"
@@ -309,10 +310,9 @@ fi
 
 msg ">>> [2/8] Instalando dependências no host..." ">>> [2/8] Installing dependencies on the host..."
 
+PKG_HOST=$(jq -r '.host_install[]' "$CONFIG_DIR/packages.json" | tr '\n' ' ')
 sudo apt-get update
-sudo apt-get install -y \
-    xorriso squashfs-tools syslinux syslinux-efi isolinux fakeroot \
-    htop vim atop cloud-init bindfs xserver-xephyr jq
+sudo apt-get install -y $PKG_HOST jq
 
 # ============================================================ #
 # 3. EXTRAÇÃO DO ISO E DO SQUASHFS
@@ -448,11 +448,14 @@ for pkg in "${HUNSPELL_OTHER_ALL[@]}"; do
 done
 HUNSPELL_OTHER_STR="${HUNSPELL_OTHER[*]:-}"
 
-# policies.json do Firefox vem de config/firefox-policies.json (formato
-# nativo, sem escaping de heredoc). Copiado pro squashfs-root antes do
-# chroot, já que o chroot não enxerga $CONFIG_DIR (raiz de arquivos
-# diferente) — lido de /tmp de dentro do chroot logo abaixo.
+# Arquivos estáticos de config/ (policies.json do Firefox, sddm.conf,
+# sources.list, init script de limpeza do 1G.raw) copiados pro
+# squashfs-root/tmp antes do chroot, já que ele não enxerga $CONFIG_DIR
+# (raiz de arquivos diferente) — lidos de /tmp de dentro do chroot abaixo.
 sudo cp "$CONFIG_DIR/firefox-policies.json" squashfs-root/tmp/firefox-policies.json
+sudo cp "$CONFIG_DIR/system/sddm.conf.tmpl" squashfs-root/tmp/sddm.conf
+sudo cp "$CONFIG_DIR/system/apt-sources.list.tmpl" squashfs-root/tmp/apt-sources.list
+sudo cp "$CONFIG_DIR/system/cleaning.init.tmpl" squashfs-root/tmp/cleaning.init
 
 sudo chroot squashfs-root /usr/bin/env LIVE_USER="$LIVE_USER" LIVE_PASSWORD="$LIVE_PASSWORD" ISO_MODE="$ISO_MODE" LANG_MODE="$LANG_MODE" ISO_LOCALE="$ISO_LOCALE" ISO_LANGUAGE="$ISO_LANGUAGE" ISO_LANG_PKG="$ISO_LANG_PKG" ISO_HUNSPELL_PKG="$ISO_HUNSPELL_PKG" KEYBOARD_LAYOUT="$KEYBOARD_LAYOUT" DESKTOP_LANG="$DESKTOP_LANG" DESKTOP_NAME="$DESKTOP_NAME" PKG_ALWAYS="$PKG_ALWAYS" PKG_INSTALL_MODE_ONLY="$PKG_INSTALL_MODE_ONLY" PKG_KERNEL_LIQUORIX="$PKG_KERNEL_LIQUORIX" PURGE_ALWAYS="$PURGE_ALWAYS" PURGE_ALWAYS_WILDCARDS="$PURGE_ALWAYS_WILDCARDS" PURGE_LIVE_MODE_ONLY="$PURGE_LIVE_MODE_ONLY" PURGE_KERNEL_DEFAULT_WILDCARDS="$PURGE_KERNEL_DEFAULT_WILDCARDS" PURGE_MISC="$PURGE_MISC" PURGE_OTHER_LANGS_STR="$PURGE_OTHER_LANGS_STR" HUNSPELL_OTHER_STR="$HUNSPELL_OTHER_STR" /bin/bash -s <<'CHROOT_ROOT_SETUP'
 set -euo pipefail
@@ -468,13 +471,8 @@ msg() {
 
 echo 'nameserver 8.8.8.8' > /etc/resolv.conf
 rm -f /etc/network/interfaces
-cat > /etc/sddm.conf << 'EOF'
-[General]
-InputMethod=
-
-[Wayland]
-EnableHiDPI=true
-EOF
+cp /tmp/sddm.conf /etc/sddm.conf
+rm -f /tmp/sddm.conf
 
 mkdir -p /var/lib/sddm
 cat > /var/lib/sddm/state.conf << EOF
@@ -496,13 +494,8 @@ for bin in /usr/sbin/grub-install /usr/sbin/grub-mkconfig /usr/sbin/update-grub 
     ln -sf /bin/true "$bin"
 done
 
-cat > /etc/apt/sources.list << 'EOF'
-deb http://deb.debian.org/debian/ trixie main contrib non-free non-free-firmware
-deb-src http://deb.debian.org/debian/ trixie main contrib non-free non-free-firmware
-
-deb http://deb.debian.org/debian-security/ trixie-security main contrib non-free non-free-firmware
-deb-src http://deb.debian.org/debian-security/ trixie-security main contrib non-free non-free-firmware
-EOF
+cp /tmp/apt-sources.list /etc/apt/sources.list
+rm -f /tmp/apt-sources.list
 
 apt-get update
 apt-get upgrade -y
@@ -705,36 +698,10 @@ cd "/home/$LIVE_USER"
 dd if=/dev/urandom of="/home/$LIVE_USER/1G.raw" bs=1G count=1
 chown "$LIVE_USER:$LIVE_USER" "/home/$LIVE_USER/1G.raw"
 
-# Delimitador SEM aspas: precisamos que $LIVE_USER seja expandido agora, mas
-# o "$1" do case abaixo é do próprio init script (roda no boot da live), não
-# pode ser expandido aqui — por isso é escrito como \$1.
-cat > /etc/init.d/cleaning.sh << EOF
-#! /bin/bash
-### BEGIN INIT INFO
-# Provides:          cleaning
-# Required-Start:
-# Required-Stop:
-# Default-Start:     2 3 4 5
-# Default-Stop:
-# Short-Description: cleaning file into /home/$LIVE_USER/
-# Description: cleaning file into /home/$LIVE_USER/
-### END INIT INFO
-case "\$1" in
-  start)
-    echo "Starting cleaning..."
-    rm -rf /home/$LIVE_USER/*.raw
-    ;;
-  stop)
-    echo "Stopping cleaning..."
-    sleep 2
-    ;;
-  *)
-    echo "Usage: /etc/init.d/cleaning {start|stop}"
-    exit 1
-    ;;
-esac
-exit 0
-EOF
+# Template já vem com $1 literal (arquivo comum, não passa por expansão
+# de heredoc) — só o placeholder __LIVE_USER__ é substituído.
+sed "s#__LIVE_USER__#$LIVE_USER#g" /tmp/cleaning.init > /etc/init.d/cleaning.sh
+rm -f /tmp/cleaning.init
 chmod +x /etc/init.d/cleaning.sh
 update-rc.d cleaning.sh defaults
 
@@ -869,6 +836,8 @@ fi
 
 msg ">>> [7/8] Rodando finalização (root) dentro do chroot..." ">>> [7/8] Running finalization (root) inside chroot..."
 
+sudo cp "$CONFIG_DIR/system/timezone.init.tmpl" squashfs-root/tmp/timezone.init
+
 sudo chroot squashfs-root /usr/bin/env LIVE_USER="$LIVE_USER" LANG_MODE="$LANG_MODE" ISO_LOCALE="$ISO_LOCALE" ISO_LANGUAGE="$ISO_LANGUAGE" TIMEZONE="$TIMEZONE" /bin/bash -s <<'CHROOT_ROOT_FINISH'
 set -euo pipefail
 BUILD_LANG_MODE="$LANG_MODE"
@@ -885,34 +854,10 @@ msg() {
 rm -rf /etc/localtime
 ln -sf "/usr/share/zoneinfo/$TIMEZONE" /etc/localtime
 
-cat > /etc/init.d/timezone.sh << EOF
-#! /bin/bash
-### BEGIN INIT INFO
-# Provides:          timezone
-# Required-Start:
-# Required-Stop:
-# Default-Start:     2 3 4 5
-# Default-Stop:
-# Short-Description: timezone
-# Description: timezone
-### END INIT INFO
-case "\$1" in
-  start)
-    echo "Starting timezone..."
-    ln -sf /usr/share/zoneinfo/$TIMEZONE /etc/localtime
-    timedatectl set-timezone $TIMEZONE
-    ;;
-  stop)
-    echo "Stopping timezone..."
-    sleep 2
-    ;;
-  *)
-    echo "Usage: /etc/init.d/timezone.sh {start|stop}"
-    exit 1
-    ;;
-esac
-exit 0
-EOF
+# Template já vem com $1 literal (arquivo comum, não passa por expansão
+# de heredoc) — só o placeholder __TIMEZONE__ é substituído.
+sed "s#__TIMEZONE__#$TIMEZONE#g" /tmp/timezone.init > /etc/init.d/timezone.sh
+rm -f /tmp/timezone.init
 chmod +x /etc/init.d/timezone.sh
 update-rc.d timezone.sh defaults
 
