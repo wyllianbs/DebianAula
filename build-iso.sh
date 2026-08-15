@@ -808,26 +808,6 @@ sudo chmod +x squashfs-root/tmp/customize-home.sh
 sudo chroot squashfs-root su - "$LIVE_USER" -c "LANG_MODE=$LANG_MODE bash /tmp/customize-home.sh"
 sudo rm -f squashfs-root/tmp/customize-home.sh
 
-# customize-home.sh só grava na home do usuário live — /etc/skel (usado
-# pelo módulo "users" do Calamares num install) nunca recebia conky/
-# LazyVim, só o que customize-skel.sh copiou antes. Resultado: qualquer
-# usuário criado pelo Calamares (mesmo com nome diferente do live) ficava
-# sem conky/nvim. Só importa no modo "install" — no live-only não existe
-# criação de um segundo usuário, então copiar aqui só infla a ISO à toa.
-if [[ "$ISO_MODE" == "install" ]]; then
-    msg "    Espelhando conky/nvim gerados para /etc/skel (usuário criado na instalação)..." "    Mirroring generated conky/nvim into /etc/skel (the user created at install time)..."
-    HOME_SRC="squashfs-root/home/$LIVE_USER"
-    SKEL_DST="squashfs-root/etc/skel"
-    # Best-effort: alguns itens podem não existir (ex: clone do LazyVim falhou).
-    for item in .conky .config/autostart/conky.desktop .config/nvim .local/share/nvim .local/state/nvim; do
-        if [[ -e "$HOME_SRC/$item" ]]; then
-            sudo mkdir -p "$(dirname "$SKEL_DST/$item")"
-            sudo cp -a "$HOME_SRC/$item" "$SKEL_DST/$item"
-        fi
-    done
-    sudo chown -R root:root "$SKEL_DST"
-fi
-
 echo
 msg ">>> Entrando no ambiente do usuário '$LIVE_USER' (interativo)." ">>> Entering '$LIVE_USER' user environment (interactive)."
 msg "    - Um X aninhado (Xephyr, display :2) vai abrir numa janela na sua" "    - A nested X server (Xephyr, display :2) will open in a window on"
@@ -871,6 +851,35 @@ msg ">>> Ambiente interativo encerrado. Retomando automação..." ">>> Interacti
 sudo umount -l "squashfs-root/home/$LIVE_USER/.cache/doc" 2>/dev/null || true
 
 sudo chroot squashfs-root chown -R "$LIVE_USER:$LIVE_USER" "/home/$LIVE_USER" || true
+
+# Só no modo "install": espelha a home do usuário live inteira (já com
+# tudo que o customize-home.sh gerou automaticamente E qualquer ajuste
+# manual feito na sessão Xephyr acima) para /etc/skel — assim o usuário
+# que o Calamares cria na instalação herda tudo, não só o que já estava
+# em skel/ no repositório. Isso NÃO altera o skel/ do repositório (Git);
+# é só a cópia dentro desta build (squashfs-root/etc/skel), refeita do
+# zero a cada vez. Exclui coisas específicas da sessão live que não fazem
+# sentido levar para um usuário novo: o placeholder de espaço em disco
+# (1G.raw), o perfil do Firefox (o projeto propositalmente não envia
+# perfil pronto — ver policies.json — copiar aqui vazaria histórico/
+# cookies/senhas da sessão de build), histórico de shell, caches e lixo
+# de sessão.
+if [[ "$ISO_MODE" == "install" ]]; then
+    msg "    Espelhando a home do usuário live inteira para /etc/skel (usuário criado na instalação)..." "    Mirroring the whole live user's home into /etc/skel (the user created at install time)..."
+    sudo rm -rf squashfs-root/etc/skel
+    sudo mkdir -p squashfs-root/etc/skel
+    ( cd "squashfs-root/home/$LIVE_USER" && sudo tar \
+        --exclude='./1G.raw' \
+        --exclude='./.mozilla' \
+        --exclude='./.cache' \
+        --exclude='./.bash_history' \
+        --exclude='./.Xauthority' \
+        --exclude='./.ICEauthority' \
+        --exclude='./.local/share/Trash' \
+        --exclude='./.local/share/sddm' \
+        -cf - . | sudo tar -xf - -C ../../etc/skel )
+    sudo chown -R root:root squashfs-root/etc/skel
+fi
 
 # ============================================================ #
 # 7. ETAPA ROOT FINAL DENTRO DO CHROOT (automática)
