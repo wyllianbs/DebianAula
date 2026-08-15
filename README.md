@@ -242,6 +242,19 @@ qemu-system-x86_64 \
     -hda DebianAula.qcow2 -cdrom DebianAulaInstall.iso -boot d
 ```
 
+Once Calamares finishes installing onto `DebianAula.qcow2`, boot that same
+disk **without** the ISO attached (drop `-cdrom`/`-boot d`) to start the
+real installed system — from here on, everything you do is written to
+`DebianAula.qcow2` and persists across reboots, like any normal install:
+
+```bash
+qemu-system-x86_64 \
+    -enable-kvm -cpu host \
+    -m 8G -vga virtio -usb \
+    -device intel-hda -device hda-duplex \
+    -hda DebianAula.qcow2
+```
+
 Or write the ISO to a USB drive directly (⚠️ this overwrites the target
 device — double-check `/dev/sdX`):
 
@@ -269,6 +282,15 @@ qemu-system-x86_64 -accel whpx -cpu host -m 8G -vga virtio -usb ^
     -hda DebianAula.qcow2 -cdrom DebianAulaInstall.iso -boot d
 ```
 
+Once Calamares finishes installing, boot `DebianAula.qcow2` **without**
+the ISO (drop `-cdrom`/`-boot d`) to start the real installed system —
+persistent from here on:
+
+```bat
+qemu-system-x86_64 -accel whpx -cpu host -m 8G -vga virtio -usb ^
+    -hda DebianAula.qcow2
+```
+
 #### macOS
 
 Install QEMU via [Homebrew](https://brew.sh) (`brew install qemu`) and use
@@ -286,6 +308,15 @@ qemu-system-x86_64 -accel hvf -cpu host -m 8G -vga virtio -usb \
 qemu-img create -f qcow2 DebianAula.qcow2 50G
 qemu-system-x86_64 -accel hvf -cpu host -m 8G -vga virtio -usb \
     -hda DebianAula.qcow2 -cdrom DebianAulaInstall.iso -boot d
+```
+
+Once Calamares finishes installing, boot `DebianAula.qcow2` **without**
+the ISO (drop `-cdrom`/`-boot d`) to start the real installed system —
+persistent from here on:
+
+```bash
+qemu-system-x86_64 -accel hvf -cpu host -m 8G -vga virtio -usb \
+    -hda DebianAula.qcow2
 ```
 
 > On **Apple Silicon (M1/M2/M3/...)** `hvf` only accelerates same-architecture
