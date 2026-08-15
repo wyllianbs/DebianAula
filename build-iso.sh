@@ -1004,6 +1004,17 @@ fi
 # Limpeza antes de reempacotar
 sudo umount -l "squashfs-root/home/$LIVE_USER/.cache/doc" 2>/dev/null || true
 sudo rm -rf "squashfs-root/home/$LIVE_USER/.cache"
+# Perfil do Firefox do usuário live: se alguma sessão anterior (teste
+# manual no Xephyr, por exemplo) já tiver aberto o Firefox, o perfil fica
+# com um cache de idiomas/extensões desatualizado -- travado com o que
+# estava instalado/configurado NAQUELE momento (ex: antes do
+# firefox-l10n-* ou da política intl.locale.requested existirem). Como a
+# instalação agora reaproveita este mesmo usuário live (não cria conta
+# nova), esse perfil velho embarcaria em toda instalação e toda ISO live
+# gerada a partir daqui. Apaga pra garantir perfil zerado no primeiro uso
+# real, sempre -- é assim que a política de idioma e o langpack são
+# detectados corretamente.
+sudo rm -rf "squashfs-root/home/$LIVE_USER/.mozilla"
 sudo rm -rf squashfs-root/tmp/*
 sudo rm -rf squashfs-root/tmp/.* 2>/dev/null || true
 sudo rm -f squashfs-root/usr/sbin/policy-rc.d
