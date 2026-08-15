@@ -17,15 +17,16 @@ WORKDIR="$(pwd)"
 BASE_URL="https://cdimage.debian.org/debian-cd/current-live/amd64/iso-hybrid"
 
 # Script bilíngue (pt/en): detecta o idioma pelo $LANG/$LANGUAGE do sistema
-# onde o build está rodando (não tem relação com o idioma da ISO gerada,
-# que é sempre pt-BR por padrão — ver etapa 5).
+# onde o build está rodando. Isso é só para as MENSAGENS do build-iso.sh
+# (prompts, progresso) — completamente independente do idioma escolhido
+# para a ISO gerada (ISO_LOCALE, perguntado mais abaixo). A sessão
+# interativa do Xephyr usa ISO_LOCALE, não isto, pois deve refletir o
+# idioma real do sistema final sendo construído.
 LANG_PROBE="${LANG:-${LANGUAGE:-en}}"
 if [[ "$LANG_PROBE" == pt* ]]; then
     LANG_MODE="pt"
-    BUILD_LOCALE="pt_BR.UTF-8"
 else
     LANG_MODE="en"
-    BUILD_LOCALE="en_US.UTF-8"
 fi
 
 # msg "texto em pt" "text in en"  -> imprime com \n
@@ -777,7 +778,7 @@ Xephyr :2 -screen 1280x800 -resizeable -ac >/tmp/xephyr.log 2>&1 &
 XEPHYR_PID=$!
 sleep 1
 
-sudo chroot squashfs-root su - "$LIVE_USER" -c "export LANG=$BUILD_LOCALE LC_ALL=$BUILD_LOCALE; export DISPLAY=:2; export LIBGL_ALWAYS_SOFTWARE=1; nohup startplasma-x11 >/tmp/plasma-session.log 2>&1 & echo \$! > /tmp/plasma-session.pid; bash; kill \$(cat /tmp/plasma-session.pid) 2>/dev/null; rm -f /tmp/plasma-session.pid /tmp/plasma-session.log"
+sudo chroot squashfs-root su - "$LIVE_USER" -c "export DISPLAY=:2; export LIBGL_ALWAYS_SOFTWARE=1; nohup startplasma-x11 >/tmp/plasma-session.log 2>&1 & echo \$! > /tmp/plasma-session.pid; bash; kill \$(cat /tmp/plasma-session.pid) 2>/dev/null; rm -f /tmp/plasma-session.pid /tmp/plasma-session.log"
 
 kill "$XEPHYR_PID" 2>/dev/null || true
 
