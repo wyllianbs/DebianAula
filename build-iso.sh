@@ -485,7 +485,11 @@ if sudo chroot squashfs-root getent passwd "$LIVE_USER" >/dev/null 2>&1; then
     msg "    Usuário live já existe (build retomado) — reaplicando skel/ no home dele também..." "    Live user already exists (resumed build) — reapplying skel/ to their home too..."
     sudo cp -a "$WORKDIR/skel"/. "squashfs-root/home/$LIVE_USER"/
     sudo grep -rlZ "ufsc" "squashfs-root/home/$LIVE_USER" 2>/dev/null | sudo xargs -0 -r sed -i "s/ufsc/$LIVE_USER/g" || true
-    sudo chown -R "$LIVE_USER:$LIVE_USER" "squashfs-root/home/$LIVE_USER"
+    # chown por nome roda contra o /etc/passwd do HOST, não o do chroot --
+    # "$LIVE_USER" (ex. "debian") normalmente não existe como usuário real
+    # no host, só dentro do squashfs-root. Precisa rodar o chown através
+    # do próprio chroot pra resolver o nome certo.
+    sudo chroot squashfs-root chown -R "$LIVE_USER:$LIVE_USER" "/home/$LIVE_USER"
 fi
 
 # ============================================================ #
