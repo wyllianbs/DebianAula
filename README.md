@@ -250,6 +250,18 @@ for why those are isolated in the first place), and leaves `squashfs-root`/
 `iso` in a resumable state. Running `bash build-iso.sh` again afterwards
 picks up where it left off.
 
+**Resuming doesn't redo finished work.** `build-iso.sh` tracks which of its
+8 steps last fully completed (`.debianaula-build-progress` in the
+repository directory, written only once a step is 100% done — never
+mid-step, so a resume never skips something half-finished). If a previous
+run got past the slow package-install/customization/finalization steps
+(5, 6, 7) before crashing or being interrupted, the next run asks whether
+to resume right after the last completed one instead of redoing all of
+that from scratch — the same recovery message also names exactly which
+step it stopped at. Answering "no" (or starting genuinely fresh) redoes
+everything as before. The marker is removed automatically once a build
+finishes successfully.
+
 The finished ISO is written to the repository directory under the filename
 you chose at step 3 (`DebianAula.iso`/`DebianAulaInstall.iso` by default,
 depending on the mode from step 2 — so a Calamares-capable build is never
