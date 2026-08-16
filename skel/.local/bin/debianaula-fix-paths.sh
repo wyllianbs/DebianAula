@@ -34,5 +34,17 @@ if [[ -f "$OLD_USER_FILE" ]]; then
     fi
 fi
 
+# O lançador "Instalar Debian" fica na área de trabalho da ISO live (é o
+# ponto de entrada da instalação), mas o Calamares remove o pacote
+# calamares-settings-debian no fim da instalação -- e com ele o
+# /usr/bin/calamares-install-debian que este .desktop chama. No sistema já
+# instalado o ícone sobraria apontando para um comando inexistente. Como o
+# home do usuário live é preservado na instalação, é aqui que dá para
+# limpar: se o alvo do Exec sumiu, o atalho não serve mais para nada.
+LAUNCHER="$HOME/Desktop/calamares-install-debian.desktop"
+if [[ -f "$LAUNCHER" ]] && ! command -v calamares-install-debian >/dev/null 2>&1; then
+    rm -f "$LAUNCHER"
+fi
+
 mkdir -p "$(dirname "$MARKER_DONE")"
 touch "$MARKER_DONE"

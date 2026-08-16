@@ -485,6 +485,21 @@ if sudo chroot squashfs-root getent passwd "$LIVE_USER" >/dev/null 2>&1; then
     msg "    Usuário live já existe (build retomado) — reaplicando skel/ no home dele também..." "    Live user already exists (resumed build) — reapplying skel/ to their home too..."
     sudo cp -a "$WORKDIR/skel"/. "squashfs-root/home/$LIVE_USER"/
     sudo grep -rlZ "ufsc" "squashfs-root/home/$LIVE_USER" 2>/dev/null | sudo xargs -0 -r sed -i "s/ufsc/$LIVE_USER/g" || true
+    # ~/Desktop não vem do skel/ do repositório (git não versiona diretório
+    # vazio) -- é criado pelo customize-skel.sh direto no /etc/skel. Num
+    # build retomado o adduser não roda de novo, então precisa ser criado
+    # aqui também. Ver o comentário no customize-skel.sh sobre por que a
+    # pasta tem que existir de verdade, não só estar em user-dirs.dirs.
+    sudo mkdir -p "squashfs-root/home/$LIVE_USER/Desktop" \
+                  "squashfs-root/home/$LIVE_USER/Downloads"
+    # Idem para o lançador do Calamares: na etapa 5 (pulada em builds
+    # retomados) ele é copiado para a área de trabalho. Aqui o pacote já
+    # está instalado, então dá para reaproveitar o .desktop do sistema.
+    if [[ "$ISO_MODE" == "install" && -f "squashfs-root/usr/share/applications/calamares-install-debian.desktop" ]]; then
+        sudo cp "squashfs-root/usr/share/applications/calamares-install-debian.desktop" \
+                "squashfs-root/home/$LIVE_USER/Desktop/"
+        sudo chmod +x "squashfs-root/home/$LIVE_USER/Desktop/calamares-install-debian.desktop"
+    fi
     # chown por nome roda contra o /etc/passwd do HOST, não o do chroot --
     # "$LIVE_USER" (ex. "debian") normalmente não existe como usuário real
     # no host, só dentro do squashfs-root. Precisa rodar o chown através
@@ -654,6 +669,24 @@ if [[ "$ISO_MODE" == "install" ]]; then
                 sed -i "/^Name=Install Debian/a Name[$DESKTOP_LANG]=$DESKTOP_NAME" "$f"
             fi
         done
+    fi
+
+    # Põe o lançador do instalador na área de trabalho. O pacote
+    # calamares-settings-debian só instala o .desktop em
+    # /usr/share/applications (menu); nada o coloca na área de trabalho
+    # sozinho -- até agora ele só aparecia lá se alguém o arrastasse à mão
+    # durante a sessão Xephyr, o que não era reproduzível de um build para
+    # outro. Copiado depois da tradução acima, para já sair no idioma da
+    # ISO. Vai para o /etc/skel (contas novas) e para o home do usuário
+    # live (que no modo install é o que a instalação preserva).
+    CALAMARES_LAUNCHER=/usr/share/applications/calamares-install-debian.desktop
+    if [[ -f "$CALAMARES_LAUNCHER" ]]; then
+        for d in /etc/skel/Desktop "/home/$LIVE_USER/Desktop"; do
+            mkdir -p "$d"
+            cp "$CALAMARES_LAUNCHER" "$d/"
+            chmod +x "$d/calamares-install-debian.desktop"
+        done
+        chown -R "$LIVE_USER:$LIVE_USER" "/home/$LIVE_USER/Desktop"
     fi
 
     # A instalação reaproveita o próprio usuário live (já dentro do
@@ -941,7 +974,14 @@ if [[ "$ISO_MODE" == "install" ]]; then
     # próximo caso numa instalação real, avisa aqui, cedo, com o(s)
     # arquivo(s) exato(s) -- não falha o build (pode ser inofensivo, ex.
     # histórico "recentemente usado"), só chama atenção pra revisar.
-    LEFTOVER_PATH_FILES=$(sudo grep -rlZ "/home/$LIVE_USER" squashfs-root/etc/skel 2>/dev/null | tr '\0' '\n' || true)
+    # Mesmos filtros do debianaula-fix-paths.sh (-I e os --exclude-dir):
+    # sem eles o aviso listava dezenas de .pyc, state.vscdb, LOG do leveldb
+    # etc -- binários e caches que o script de primeiro login nem tenta
+    # corrigir, de propósito (sed em binário corrompe). Alinhar os dois
+    # deixa o aviso mostrar só o que é de fato acionável.
+    LEFTOVER_PATH_FILES=$(sudo grep -rlZI "/home/$LIVE_USER" squashfs-root/etc/skel \
+        --exclude-dir=.cache --exclude-dir=nvim --exclude-dir=node_modules \
+        2>/dev/null | tr '\0' '\n' || true)
     if [[ -n "$LEFTOVER_PATH_FILES" ]]; then
         msg "!!! AVISO: arquivo(s) em /etc/skel ainda referenciam /home/$LIVE_USER" "!!! WARNING: file(s) in /etc/skel still reference /home/$LIVE_USER"
         echo "$LEFTOVER_PATH_FILES" | sed 's/^/!!!   - /'
@@ -1120,6 +1160,14 @@ sudo rm -rf "squashfs-root/home/$LIVE_USER/.mozilla"
 # ~/.mozilla. Sem isso, o Firefox shipado carrega esse perfil "novo"
 # desatualizado (idioma/langpack cacheados de antes da política existir).
 sudo rm -rf "squashfs-root/home/$LIVE_USER/.config/mozilla"
+# Marcador "já corrigi os caminhos" do debianaula-fix-paths.sh: a sessão
+# Xephyr do build também dispara o autostart, então esse arquivo nasce
+# durante o próprio build e, se fosse junto na imagem, faria o script sair
+# na hora no primeiro login real -- sem nunca corrigir nada nem remover o
+# lançador órfão do instalador. Apagado para que a ISO sempre saia com a
+# correção de primeiro login ainda pendente.
+sudo rm -f "squashfs-root/home/$LIVE_USER/.config/.debianaula-paths-fixed"
+sudo rm -f "squashfs-root/etc/skel/.config/.debianaula-paths-fixed"
 sudo rm -rf squashfs-root/tmp/*
 sudo rm -rf squashfs-root/tmp/.* 2>/dev/null || true
 sudo rm -f squashfs-root/usr/sbin/policy-rc.d

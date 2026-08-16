@@ -46,7 +46,8 @@ distraction-free environment out of the box.
   - Kickoff menu favorites curated (browser, file manager, terminal, editors)
   - Digital clock with seconds and long date format
   - Notification area with the relevant items always visible
-  - Desktop folder correctly pointed at `~/Desktop` (not `$HOME`)
+  - Desktop folder correctly pointed at `~/Desktop` (not `$HOME`), created
+    at build time — see [Home folder layout](#home-folder-layout)
   - Slideshow wallpaper (60 min, random)
   - Keyboard layout, system-wide (default: ABNT2/`br`, configurable at build time)
   - Screen lock disabled, Bluetooth disabled
@@ -180,8 +181,17 @@ The build then runs mostly unattended. It pauses twice for interaction:
 - **Interactive desktop session**: a nested X server (Xephyr) opens a nearly-
   complete desktop, isolated from your real session, where you can make any
   additional manual tweaks (Dolphin view mode, Konsole toolbar, etc.) before
-  the ISO is finalized. Close the apps you opened normally, then close the
-  Xephyr window (or type `exit`) to resume the automated build.
+  the ISO is finalized. Close the apps you opened normally, then go back to
+  **the terminal running `build-iso.sh`** and type `exit` (or Ctrl+D) there
+  to resume the automated build. Closing the Xephyr window, or logging out
+  from inside the nested Plasma session, does **not** resume it — that
+  terminal keeps waiting for `exit` regardless.
+
+  > [!IMPORTANT]
+  > **Don't create a Desktop folder or change "Desktop folder" under System
+  > Settings → Session → Locations in this session.** `~/Desktop` is already
+  > created by the build and pointed at by `XDG_DESKTOP_DIR` — see
+  > [Home folder layout](#home-folder-layout).
 
 ### Build process
 
@@ -474,6 +484,37 @@ touch `build-iso.sh`'s logic:
   - Diff `config/boot/*.tmpl` wording against the new base ISO's own
     `isolinux/*.cfg`/`boot/grub/*.cfg`, in case Debian changed labels or
     added/removed entries worth carrying over.
+
+## Home folder layout
+
+The live user's home is deliberately flat: only `~/Desktop` and
+`~/Downloads` exist. Documents, Music, Pictures, Videos, Templates and
+Public are all mapped to `$HOME` itself (`skel/.config/user-dirs.dirs`), so
+students don't get eight empty folders they never use.
+
+Two things make this stick, and both matter if you plan to change it:
+
+- **`~/Desktop` and `~/Downloads` are created at build time**
+  (`customize-skel.sh`). They have to physically *exist*, not just be
+  declared: when `XDG_DESKTOP_DIR` points at a missing directory, Qt/KDE
+  silently falls back to `$HOME`, and the desktop then displays the whole
+  home folder as icons.
+- **`xdg-user-dirs-update` is disabled** (`skel/.config/user-dirs.conf`,
+  `enabled=False`). Left enabled, it runs at every login and recreates
+  these folders translated into the session language — on a `pt_BR` ISO it
+  would rename `Desktop` to `Área de trabalho`, breaking `XDG_DESKTOP_DIR`
+  and every path pointing at `~/Desktop`.
+
+So there is nothing to set up by hand. **Do not create a `Desktop` folder
+manually** — in the Xephyr session, in a live session, or on an installed
+system. Creating one while the desktop is already falling back to `$HOME`
+is what produces the `/home/<user>/Desktop/Desktop does not exist` error:
+the folder-view widget resolves `desktop:/` through `XDG_DESKTOP_DIR`, so
+pointing that at an inner `Desktop` doubles the path.
+
+To change the layout, edit `skel/.config/user-dirs.dirs` and the directory
+list in `customize-skel.sh` together — they must agree, or the fallback
+above kicks in again.
 
 ## Customizing further
 

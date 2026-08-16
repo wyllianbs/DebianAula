@@ -60,9 +60,26 @@ fi
 # user-dirs.locale controla em que idioma o xdg-user-dirs-update nomeia as
 # pastas do home (Desktop/Área de Trabalho, Documents/Documentos etc) na
 # primeira sessão do usuário. Segue o idioma escolhido para a ISO.
+# (skel/.config/user-dirs.conf desliga esse updater — ver comentário lá —,
+# então isto é só coerência caso alguém o reative.)
 if [[ -f "$SKEL_DST/.config/user-dirs.locale" ]]; then
     echo "$ISO_LANG_SHORT" | sudo tee "$SKEL_DST/.config/user-dirs.locale" > /dev/null
 fi
+
+# ~/Desktop precisa EXISTIR, não só estar declarado em user-dirs.dirs:
+# quando o diretório não existe, o Qt/KDE ignora XDG_DESKTOP_DIR e cai no
+# fallback $HOME — a área de trabalho passa a mostrar o home inteiro
+# (Downloads e afins viram ícones) e o KCM "Localizações" exibe /home/<user>.
+# Normalmente quem criaria essa pasta é o xdg-user-dirs-update no primeiro
+# login, mas ele não roda na sessão Xephyr do build (chamamos
+# startplasma-x11 direto, sem passar pelo /etc/X11/Xsession.d/), então a
+# pasta nunca nascia. Criada aqui para o resultado não depender disso.
+# Downloads entra pelo mesmo motivo: também está declarado em
+# user-dirs.dirs e, com o updater desligado, ninguém mais o criaria.
+for d in Desktop Downloads; do
+    sudo mkdir -p "$SKEL_DST/$d"
+    sudo chown root:root "$SKEL_DST/$d"
+done
 
 # Thonny (IDE usada nas aulas de Python) também segue o idioma da ISO.
 # Best-effort: se o Thonny não tiver tradução para o idioma escolhido, ele
