@@ -262,6 +262,35 @@ fi
 
 echo "$ISO_MODE" > "$MODE_MARKER"
 
+# Checkpoint de progresso: grava, ao final de cada etapa 5/6/7 (as lentas —
+# pacotes, LazyVim/kate-quickrun, finalização), o número da última etapa
+# concluída. Se o build travar/for interrompido no meio e você rodar
+# 'bash build-iso.sh' de novo, pergunta se quer continuar dali em vez de
+# refazer 4-7 inteiro (que hoje sempre rodava de novo do zero, mesmo já
+# tendo chegado longe -- daí a demora em cada nova tentativa).
+PROGRESS_MARKER="$WORKDIR/.debianaula-build-progress"
+RESUME_FROM=1
+if [[ ! -d squashfs-root ]]; then
+    # Sem squashfs-root não há o que continuar (foi removido acima, ou
+    # nunca existiu) -- descarta qualquer marcador de progresso antigo.
+    rm -f "$PROGRESS_MARKER"
+elif [[ -f "$PROGRESS_MARKER" ]]; then
+    LAST_STEP="$(cat "$PROGRESS_MARKER" 2>/dev/null || true)"
+    if [[ "$LAST_STEP" =~ ^[0-9]+$ && "$LAST_STEP" -ge 1 && "$LAST_STEP" -lt 8 ]]; then
+        NEXT_STEP=$((LAST_STEP + 1))
+        echo
+        msg "    A execução anterior parou logo após concluir a etapa [$LAST_STEP/8]." "    The previous run stopped right after finishing step [$LAST_STEP/8]."
+        read -rp "$(mp "    Continuar a partir da etapa [$NEXT_STEP/8] em vez de refazer tudo? [S/n]: " "    Resume from step [$NEXT_STEP/8] instead of redoing everything? [Y/n]: ")" RESUME_ANSWER
+        RESUME_ANSWER="${RESUME_ANSWER,,}"
+        if [[ -z "$RESUME_ANSWER" || "$RESUME_ANSWER" == "s" || "$RESUME_ANSWER" == "sim" || "$RESUME_ANSWER" == "y" || "$RESUME_ANSWER" == "yes" ]]; then
+            RESUME_FROM="$NEXT_STEP"
+            msg "    Retomando a partir da etapa [$NEXT_STEP/8]." "    Resuming from step [$NEXT_STEP/8]."
+        else
+            msg "    Refazendo a partir da etapa [1/8]." "    Redoing from step [1/8]."
+        fi
+    fi
+fi
+
 # ============================================================ #
 # 1. DOWNLOAD DO ISO
 # ============================================================ #
@@ -392,12 +421,18 @@ cleanup() {
     sudo umount -lf squashfs-root/dev     2>/dev/null || true
 
     if [[ "$exit_code" -ne 0 ]]; then
+        local last_step=""
+        [[ -f "$PROGRESS_MARKER" ]] && last_step="$(cat "$PROGRESS_MARKER" 2>/dev/null || true)"
         echo
         msg "!!! O script foi interrompido (código de saída: $exit_code) antes de terminar." "!!! The script was interrupted (exit code: $exit_code) before finishing."
         msg "!!! O diretório 'squashfs-root' ficou em estado INCOMPLETO — não é uma ISO" "!!! The 'squashfs-root' directory is in an INCOMPLETE state — it's not a"
-        msg "!!! corrompida, apenas um build que não chegou até a Etapa 7/8." "!!! corrupted ISO, just a build that didn't reach Step 7/8."
-        msg "!!! Rode 'bash build-iso.sh' de novo para continuar de onde parou" "!!! Run 'bash build-iso.sh' again to continue from where it stopped"
-        msg "!!! (não é necessário apagar squashfs-root/iso, a menos que queira do zero)." "!!! (no need to delete squashfs-root/iso, unless you want a clean rebuild)."
+        if [[ -n "$last_step" ]]; then
+            msg "!!! corrompida, apenas um build que parou logo após concluir a etapa [$last_step/8]." "!!! corrupted ISO, just a build that stopped right after finishing step [$last_step/8]."
+        else
+            msg "!!! corrompida, apenas um build que não chegou até a Etapa 5/8." "!!! corrupted ISO, just a build that didn't reach Step 5/8."
+        fi
+        msg "!!! Rode 'bash build-iso.sh' de novo — ele vai perguntar se quer continuar" "!!! Run 'bash build-iso.sh' again — it will ask whether to resume from"
+        msg "!!! dali em vez de refazer tudo (não precisa apagar squashfs-root/iso)." "!!! there instead of redoing everything (no need to delete squashfs-root/iso)."
         echo
     fi
 }
@@ -412,6 +447,9 @@ LANG_MODE="$LANG_MODE" bash "$WORKDIR/customize-skel.sh" squashfs-root "$LIVE_US
 # 5. ETAPA ROOT DENTRO DO CHROOT (automática)
 # ============================================================ #
 
+if [[ "$RESUME_FROM" -gt 5 ]]; then
+    msg ">>> [5/8] Já concluída numa execução anterior — pulando." ">>> [5/8] Already completed in a previous run — skipping."
+else
 msg ">>> [5/8] Rodando configuração de sistema (root) dentro do chroot..." ">>> [5/8] Running system configuration (root) inside chroot..."
 
 # Se uma execução anterior foi interrompida no meio de um apt install, o dpkg
@@ -741,11 +779,16 @@ sed -i 's|panel.addWidget("org.kde.plasma.digitalclock")|var clock = panel.addWi
 
 msg ">>> Etapa root concluída." ">>> Root step completed."
 CHROOT_ROOT_SETUP
+echo "5" > "$PROGRESS_MARKER"
+fi # RESUME_FROM -gt 5
 
 # ============================================================ #
 # 6. ETAPA INTERATIVA (usuário live, ambiente gráfico)
 # ============================================================ #
 
+if [[ "$RESUME_FROM" -gt 6 ]]; then
+    msg ">>> [6/8] Já concluída numa execução anterior — pulando." ">>> [6/8] Already completed in a previous run — skipping."
+else
 echo
 msg ">>> [6/8] Customizando o home de '$LIVE_USER' (automático: conky, LazyVim, kate-quickrun, etc)..." ">>> [6/8] Customizing the home directory of '$LIVE_USER' (automatic: conky, LazyVim, kate-quickrun, etc)..."
 sudo cp "$WORKDIR/customize-home.sh" squashfs-root/tmp/customize-home.sh
@@ -855,11 +898,16 @@ if [[ "$ISO_MODE" == "install" ]]; then
         msg "!!! arquivo(s) -- considere excluí-lo(s) do espelho acima." "!!! excluding it/them from the mirror above."
     fi
 fi
+echo "6" > "$PROGRESS_MARKER"
+fi # RESUME_FROM -gt 6
 
 # ============================================================ #
 # 7. ETAPA ROOT FINAL DENTRO DO CHROOT (automática)
 # ============================================================ #
 
+if [[ "$RESUME_FROM" -gt 7 ]]; then
+    msg ">>> [7/8] Já concluída numa execução anterior — pulando." ">>> [7/8] Already completed in a previous run — skipping."
+else
 msg ">>> [7/8] Rodando finalização (root) dentro do chroot..." ">>> [7/8] Running finalization (root) inside chroot..."
 
 sudo cp "$CONFIG_DIR/system/timezone.init.tmpl" squashfs-root/tmp/timezone.init
@@ -924,6 +972,8 @@ fi
 
 msg ">>> Finalização concluída." ">>> Finalization completed."
 CHROOT_ROOT_FINISH
+echo "7" > "$PROGRESS_MARKER"
+fi # RESUME_FROM -gt 7
 
 # ============================================================ #
 # 8. DESMONTA, REEMPACOTA E GERA A ISO
@@ -1035,6 +1085,8 @@ xorriso -as mkisofs -R -r -J -joliet-long -l -cache-inodes -iso-level 3 \
     -eltorito-alt-boot -e boot/grub/efi.img -no-emul-boot \
     -isohybrid-gpt-basdat -isohybrid-apm-hfsplus \
     -o "$ISO_OUTPUT" iso
+
+rm -f "$PROGRESS_MARKER"
 
 echo
 msg ">>> ISO gerada em: $WORKDIR/$ISO_OUTPUT" ">>> ISO generated at: $WORKDIR/$ISO_OUTPUT"
