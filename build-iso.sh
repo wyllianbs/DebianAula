@@ -696,16 +696,31 @@ if [[ "$ISO_MODE" == "install" ]]; then
     # sozinho -- até agora ele só aparecia lá se alguém o arrastasse à mão
     # durante a sessão Xephyr, o que não era reproduzível de um build para
     # outro. Copiado depois da tradução acima, para já sair no idioma da
-    # ISO. Vai para o /etc/skel (contas novas) e para o home do usuário
-    # live (que no modo install é o que a instalação preserva).
+    # ISO.
+    #
+    # O destino primário é /etc/skel/Desktop: o adduser mais abaixo neste
+    # mesmo bloco ainda não rodou num build limpo, então o home do usuário
+    # live NÃO EXISTE aqui e será populado a partir do skel. Mexer em
+    # /home/$LIVE_USER neste ponto seria duplamente destrutivo -- o chown
+    # falha ("invalid user", o adduser ainda não criou a conta) e, pior, o
+    # mkdir criaria o home antes da hora, fazendo o adduser pular a cópia do
+    # /etc/skel inteiro e gerar uma ISO com o home vazio. O home só é tocado
+    # aqui em build retomado, onde a conta já existe de uma execução
+    # anterior e o skel não será mais copiado.
     CALAMARES_LAUNCHER=/usr/share/applications/calamares-install-debian.desktop
     if [[ -f "$CALAMARES_LAUNCHER" ]]; then
-        for d in /etc/skel/Desktop "/home/$LIVE_USER/Desktop"; do
+        DESKTOP_DIRS=(/etc/skel/Desktop)
+        if id "$LIVE_USER" &>/dev/null; then
+            DESKTOP_DIRS+=("/home/$LIVE_USER/Desktop")
+        fi
+        for d in "${DESKTOP_DIRS[@]}"; do
             mkdir -p "$d"
             cp "$CALAMARES_LAUNCHER" "$d/"
             chmod +x "$d/calamares-install-debian.desktop"
         done
-        chown -R "$LIVE_USER:$LIVE_USER" "/home/$LIVE_USER/Desktop"
+        if id "$LIVE_USER" &>/dev/null; then
+            chown -R "$LIVE_USER:$LIVE_USER" "/home/$LIVE_USER/Desktop"
+        fi
     fi
 
     # A instalação reaproveita o próprio usuário live (já dentro do
@@ -823,6 +838,17 @@ update-rc.d -f apache2 remove 2>/dev/null || true
 
 # Usuário live
 if ! id "$LIVE_USER" &>/dev/null; then
+    # Se o home já existe mas a conta não, o adduser NÃO copia o /etc/skel
+    # ("The home directory already exists. Not copying from /etc/skel") e a
+    # ISO sai com o home vazio -- sem dotfile nenhum, sem conky, sem nvim.
+    # Isso é resto de um build anterior que morreu no meio deste bloco,
+    # depois de algum mkdir em /home/$LIVE_USER. Como a conta ainda não
+    # existe, nada ali pode ser dado do usuário: é seguro remover para que
+    # o adduser popule o home do zero a partir do skel.
+    if [[ -d "/home/$LIVE_USER" ]]; then
+        echo ">>> /home/$LIVE_USER existe sem conta correspondente (resto de build interrompido) — removendo para o adduser copiar o /etc/skel."
+        rm -rf "/home/$LIVE_USER"
+    fi
     adduser --disabled-password --gecos "" "$LIVE_USER"
     echo "$LIVE_USER:$LIVE_PASSWORD" | chpasswd
 fi
