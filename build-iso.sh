@@ -822,8 +822,10 @@ msg "      tela, isolado da sua sessão Plasma real (:1). Dentro dele sobe a" " 
 msg "      sessão completa do Plasma (startplasma-x11: kwin, painel, etc)." "      the full Plasma session comes up (startplasma-x11: kwin, panel, etc)."
 msg "    - Faça suas customizações (dolphin, systemsettings, etc) DENTRO" "    - Make your customizations (dolphin, systemsettings, etc) INSIDE"
 msg "      dessa janela Xephyr." "      that Xephyr window."
-msg "    - Quando terminar, feche a janela do Xephyr (ou digite 'exit' no" "    - When done, close the Xephyr window (or type 'exit' in the shell"
-msg "      shell abaixo) para o script continuar." "      below) for the script to continue."
+msg "    - Quando terminar, volte pra ESTE terminal (não a janela do Xephyr)" "    - When done, come back to THIS terminal (not the Xephyr window)"
+msg "      e digite 'exit' (ou Ctrl+D) aqui para o script continuar. Fechar" "      and type 'exit' (or Ctrl+D) here for the script to continue. Just"
+msg "      só a janela do Xephyr, ou deslogar de dentro do Plasma, NÃO é" "      closing the Xephyr window, or logging out from inside Plasma, is"
+msg "      suficiente — este terminal fica esperando o 'exit' mesmo assim." "      NOT enough — this terminal keeps waiting for 'exit' regardless."
 echo
 read -rp "$(mp "Pressione ENTER para abrir o ambiente interativo do $LIVE_USER..." "Press ENTER to open the interactive environment for $LIVE_USER...")" _
 
