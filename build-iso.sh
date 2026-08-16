@@ -280,13 +280,24 @@ elif [[ -f "$PROGRESS_MARKER" ]]; then
         NEXT_STEP=$((LAST_STEP + 1))
         echo
         msg "    A execução anterior parou logo após concluir a etapa [$LAST_STEP/8]." "    The previous run stopped right after finishing step [$LAST_STEP/8]."
-        read -rp "$(mp "    Continuar a partir da etapa [$NEXT_STEP/8] em vez de refazer tudo? [S/n]: " "    Resume from step [$NEXT_STEP/8] instead of redoing everything? [Y/n]: ")" RESUME_ANSWER
-        RESUME_ANSWER="${RESUME_ANSWER,,}"
-        if [[ -z "$RESUME_ANSWER" || "$RESUME_ANSWER" == "s" || "$RESUME_ANSWER" == "sim" || "$RESUME_ANSWER" == "y" || "$RESUME_ANSWER" == "yes" ]]; then
-            RESUME_FROM="$NEXT_STEP"
-            msg "    Retomando a partir da etapa [$NEXT_STEP/8]." "    Resuming from step [$NEXT_STEP/8]."
-        else
+        # Nunca deixa escolher além de $NEXT_STEP: pular à frente do que
+        # realmente terminou (ex.: ir direto pro [8] com só o [5] feito)
+        # deixaria etapas nunca executadas de fato para trás, gerando uma
+        # ISO incompleta. Voltar pra uma etapa anterior (refazer 5 ou 6 de
+        # novo, por exemplo) é sempre permitido.
+        while true; do
+            read -rp "$(mp "    Continuar a partir de qual etapa? [1-$NEXT_STEP, Enter = $NEXT_STEP]: " "    Resume from which step? [1-$NEXT_STEP, Enter = $NEXT_STEP]: ")" RESUME_ANSWER
+            [[ -z "$RESUME_ANSWER" ]] && RESUME_ANSWER="$NEXT_STEP"
+            if [[ "$RESUME_ANSWER" =~ ^[0-9]+$ && "$RESUME_ANSWER" -ge 1 && "$RESUME_ANSWER" -le "$NEXT_STEP" ]]; then
+                RESUME_FROM="$RESUME_ANSWER"
+                break
+            fi
+            msg "    Valor inválido — digite um número de 1 a $NEXT_STEP, ou Enter para $NEXT_STEP." "    Invalid value — enter a number from 1 to $NEXT_STEP, or Enter for $NEXT_STEP."
+        done
+        if [[ "$RESUME_FROM" -eq 1 ]]; then
             msg "    Refazendo a partir da etapa [1/8]." "    Redoing from step [1/8]."
+        else
+            msg "    Retomando a partir da etapa [$RESUME_FROM/8]." "    Resuming from step [$RESUME_FROM/8]."
         fi
     fi
 fi
