@@ -21,6 +21,15 @@
     "DontCheckDefaultBrowser": true,
     "DownloadDirectory": "${home}/Downloads",
     "OfferToSaveLogins": false,
+    "OverrideFirstRunPage": "",
+    "OverridePostUpdatePage": "",
+    "UserMessaging": {
+      "WhatsNew": false,
+      "ExtensionRecommendations": false,
+      "FeatureRecommendations": false,
+      "UrlbarInterventions": false,
+      "SkipOnboarding": true
+    },
     "Preferences": {
       "browser.download.useDownloadDir": {
         "Value": false,
