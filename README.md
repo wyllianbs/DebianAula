@@ -255,11 +255,15 @@ picks up where it left off.
 repository directory, written only once a step is 100% done — never
 mid-step, so a resume never skips something half-finished). If a previous
 run got past the slow package-install/customization/finalization steps
-(5, 6, 7) before crashing or being interrupted, the next run asks whether
-to resume right after the last completed one instead of redoing all of
-that from scratch — the same recovery message also names exactly which
-step it stopped at. Answering "no" (or starting genuinely fresh) redoes
-everything as before. The marker is removed automatically once a build
+(5, 6, 7) before crashing or being interrupted, the next run asks which
+step to resume from (Enter defaults to right after the last completed
+one) instead of redoing all of that from scratch — the same recovery
+message also names exactly which step it stopped at. You can target any
+step from 1 up to that default, e.g. to deliberately redo step 6's
+interactive customization even though 7 already finished; jumping ahead
+of what actually completed isn't allowed, since that would skip real
+work and produce an incomplete ISO. Entering 1 redoes everything as
+before. The marker is removed automatically once a build
 finishes successfully.
 
 The finished ISO is written to the repository directory under the filename
