@@ -379,6 +379,29 @@ sudo chmod +x squashfs-root/usr/sbin/policy-rc.d
 
 xhost +
 
+# Desmonta em LOOP (não só uma vez) antes de montar -- se uma execução
+# anterior morreu sem o 'trap cleanup' rodar (kill -9, reboot forçado,
+# crash), pode ter sobrado uma montagem daquela vez. Um 'umount -l' comum
+# só tira a camada do TOPO; se este passo montasse por cima sem checar
+# antes, um 'umount' individual no fim do build revelaria a montagem
+# velha por baixo -- ainda "montada" mesmo depois de "desmontada". No
+# caso do /proc isso é grave: significa empacotar o /proc REAL do host
+# (processos, memória) inteiro no squashfs, o que pode travar o
+# mksquashfs (e a máquina) tentando ler arquivos de /proc que bloqueiam
+# por natureza. mountpoint -q soma cada verificação até garantir que não
+# sobrou nenhuma camada.
+unmount_stack() {
+    local path="$1"
+    local tries=0
+    while mountpoint -q "$path" 2>/dev/null && [[ "$tries" -lt 10 ]]; do
+        sudo umount -lf "$path" 2>/dev/null || true
+        tries=$((tries + 1))
+    done
+}
+for m in sys/firmware/efi/efivars proc sys run dev/shm dev/pts dev; do
+    unmount_stack "squashfs-root/$m"
+done
+
 # IMPORTANTE: nunca damos bind-mount no /sys, /dev ou /run REAIS do host
 # aqui. Um chroot não isola PID/mount/D-Bus por padrão — um bind-mount
 # desses diretórios tornaria a NVRAM UEFI real (squashfs-root/sys/firmware/
@@ -412,13 +435,9 @@ cleanup() {
     local exit_code=$?
     msg ">>> Desmontando binds (cleanup)..." ">>> Unmounting binds (cleanup)..."
     xhost - || true
-    sudo umount -lf squashfs-root/sys/firmware/efi/efivars 2>/dev/null || true
-    sudo umount -lf squashfs-root/proc    2>/dev/null || true
-    sudo umount -lf squashfs-root/sys     2>/dev/null || true
-    sudo umount -lf squashfs-root/run     2>/dev/null || true
-    sudo umount -lf squashfs-root/dev/shm 2>/dev/null || true
-    sudo umount -lf squashfs-root/dev/pts 2>/dev/null || true
-    sudo umount -lf squashfs-root/dev     2>/dev/null || true
+    for m in sys/firmware/efi/efivars proc sys run dev/shm dev/pts dev; do
+        unmount_stack "squashfs-root/$m"
+    done
 
     if [[ "$exit_code" -ne 0 ]]; then
         local last_step=""
@@ -983,13 +1002,9 @@ fi # RESUME_FROM -gt 7
 msg ">>> [8/8] Desmontando e gerando ISO final..." ">>> [8/8] Unmounting and generating the final ISO..."
 
 xhost -
-sudo umount -lf squashfs-root/sys/firmware/efi/efivars 2>/dev/null || true
-sudo umount -lf squashfs-root/proc
-sudo umount -lf squashfs-root/sys
-sudo umount -lf squashfs-root/run
-sudo umount -lf squashfs-root/dev/shm
-sudo umount -lf squashfs-root/dev/pts
-sudo umount -lf squashfs-root/dev
+for m in sys/firmware/efi/efivars proc sys run dev/shm dev/pts dev; do
+    unmount_stack "squashfs-root/$m"
+done
 trap - EXIT INT TERM   # já desmontamos manualmente, remove o trap de cleanup
 
 # Kernel/initrd atuais dentro do squashfs
@@ -1076,6 +1091,27 @@ sudo rm -rf "squashfs-root/home/$LIVE_USER/.config/mozilla"
 sudo rm -rf squashfs-root/tmp/*
 sudo rm -rf squashfs-root/tmp/.* 2>/dev/null || true
 sudo rm -f squashfs-root/usr/sbin/policy-rc.d
+
+# Trava de segurança: se ainda sobrou alguma montagem (empilhada de uma
+# execução anterior que morreu sem limpar, por exemplo), aborta aqui com
+# erro claro em vez de deixar o mksquashfs tentar empacotar o /proc/sys/
+# dev/run REAIS do host -- o que pode travar o processo (e a máquina,
+# fora de VM) tentando ler arquivos de /proc que bloqueiam por natureza.
+STILL_MOUNTED=()
+for m in sys/firmware/efi/efivars proc sys run dev/shm dev/pts dev; do
+    mountpoint -q "squashfs-root/$m" 2>/dev/null && STILL_MOUNTED+=("$m")
+done
+if (( ${#STILL_MOUNTED[@]} > 0 )); then
+    echo "!!! ERRO: squashfs-root ainda tem montagem(ns) ativa(s), mesmo após desmontar em loop:" >&2
+    printf '!!!   - %s\n' "${STILL_MOUNTED[@]}" >&2
+    echo "!!! Empacotar isso poderia incluir /proc, /sys, /dev ou /run REAIS do host na ISO" >&2
+    echo "!!! e travar o mksquashfs. Rode 'bash stop-build.sh' e tente de novo." >&2
+    echo "!!! ERROR: squashfs-root still has active mount(s), even after the unmount loop:" >&2
+    printf '!!!   - %s\n' "${STILL_MOUNTED[@]}" >&2
+    echo "!!! Packaging this could bake the host's REAL /proc, /sys, /dev, or /run into the" >&2
+    echo "!!! ISO and hang mksquashfs. Run 'bash stop-build.sh' and try again." >&2
+    exit 1
+fi
 
 msg ">>> Gerando squashfs (pode levar vários minutos)..." ">>> Generating squashfs (can take several minutes)..."
 sudo mksquashfs squashfs-root iso/live/filesystem.squashfs -comp xz -noappend
