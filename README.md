@@ -432,6 +432,24 @@ setup after login.
 
 ![Final Plasma desktop with taskbar and conky](screenshots/11-desktop-final.png)
 
+## Working with the qcow2 disk image
+
+To compress the disk image after installation:
+
+```bash
+qemu-img convert -p -c -O qcow2 -o compression_type=zstd,cluster_size=2M DebianAula.qcow2 DebianAula_zstd_2M.qcow2
+```
+
+To convert to other hypervisors (qcow2 is QEMU-native and not directly supported by VirtualBox or VMware):
+
+```bash
+# VirtualBox (VDI)
+qemu-img convert -p -O vdi DebianAula.qcow2 DebianAula.vdi
+
+# VMware (VMDK)
+qemu-img convert -p -O vmdk -o adapter_type=lsilogic,subformat=streamOptimized DebianAula.qcow2 DebianAula.vmdk
+```
+
 ## Configuring the build
 
 Most day-to-day tweaks are plain-data edits under `config/` — no need to
