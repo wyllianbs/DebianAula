@@ -473,6 +473,21 @@ trap cleanup EXIT INT TERM
 # (etapa 5), para que o novo usuário já nasça com tudo aplicado.
 LANG_MODE="$LANG_MODE" bash "$WORKDIR/customize-skel.sh" squashfs-root "$LIVE_USER" "$KEYBOARD_LAYOUT" "$ISO_LOCALE"
 
+# Se o usuário live JÁ existe (build retomado via checkpoint, depois da
+# etapa 5 já ter rodado numa tentativa anterior), o home dele só foi
+# populado a partir do skel/ UMA VEZ, na criação da conta (adduser, lá na
+# etapa 5) -- que fica pulada em builds retomados. Qualquer mudança em
+# skel/ feita depois disso só chega em /etc/skel (linha acima, sempre
+# reaplicada), nunca no home já criado. Reaplica skel/ direto no home do
+# usuário live também, sempre que ele já existir, pra não ficar
+# "congelado" numa versão antiga entre uma tentativa retomada e outra.
+if sudo test -d "squashfs-root/home/$LIVE_USER"; then
+    msg "    Usuário live já existe (build retomado) — reaplicando skel/ no home dele também..." "    Live user already exists (resumed build) — reapplying skel/ to their home too..."
+    sudo cp -a "$WORKDIR/skel"/. "squashfs-root/home/$LIVE_USER"/
+    sudo grep -rlZ "ufsc" "squashfs-root/home/$LIVE_USER" 2>/dev/null | sudo xargs -0 -r sed -i "s/ufsc/$LIVE_USER/g" || true
+    sudo chown -R "$LIVE_USER:$LIVE_USER" "squashfs-root/home/$LIVE_USER"
+fi
+
 # ============================================================ #
 # 5. ETAPA ROOT DENTRO DO CHROOT (automática)
 # ============================================================ #
