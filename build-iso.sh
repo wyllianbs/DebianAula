@@ -1113,8 +1113,15 @@ if (( ${#STILL_MOUNTED[@]} > 0 )); then
     exit 1
 fi
 
-msg ">>> Gerando squashfs (pode levar vários minutos)..." ">>> Generating squashfs (can take several minutes)..."
-sudo mksquashfs squashfs-root iso/live/filesystem.squashfs -comp xz -noappend
+# Limita a metade dos núcleos disponíveis -- xz com todos os núcleos ao
+# mesmo tempo pode disputar memória/IO agressivamente e deixar a máquina
+# quase sem resposta durante a compressão (mínimo 1, nunca 0 numa VM/host
+# de 1 núcleo só).
+SQUASHFS_PROCESSORS=$(( $(nproc) / 2 ))
+[[ "$SQUASHFS_PROCESSORS" -lt 1 ]] && SQUASHFS_PROCESSORS=1
+
+msg ">>> Gerando squashfs (pode levar vários minutos, usando $SQUASHFS_PROCESSORS núcleo(s))..." ">>> Generating squashfs (can take several minutes, using $SQUASHFS_PROCESSORS core(s))..."
+sudo mksquashfs squashfs-root iso/live/filesystem.squashfs -comp xz -processors "$SQUASHFS_PROCESSORS" -noappend
 
 msg ">>> Gerando checksums..." ">>> Generating checksums..."
 ( cd iso && sudo rm -f md5sum.txt && find . -type f -not -name md5sum.txt -print0 | sudo xargs -0 md5sum | sudo tee md5sum.txt > /dev/null )
