@@ -1,5 +1,5 @@
 [Desktop Entry]
-Exec=bash -c "$HOME/.conky/start.sh"
+Exec=bash -c "~/.conky/start.sh"
 Name=conky
 Type=Application
 X-LXQt-Need-Tray=true

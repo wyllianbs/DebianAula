@@ -1,5 +1,10 @@
 #!/bin/bash
 #
+# HOME nem sempre chega definido quando disparado via autostart do Plasma
+# 6 (unidade systemd gerada por app-*@autostart.service) -- cai pra
+# consulta no /etc/passwd nesse caso, igual ao fallback do til (~) do bash.
+: "${HOME:=$(getent passwd "$(id -un)" | cut -d: -f6)}"
+#
 # debianaula-fix-paths.sh — Runs once, at the first login of whatever user
 # Calamares creates during install. Fixes up any leftover file under $HOME
 # that still hardcodes the live-build username's path (/home/<old user>),
