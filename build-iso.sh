@@ -862,6 +862,7 @@ if [[ "$ISO_MODE" == "install" ]]; then
     ( cd "squashfs-root/home/$LIVE_USER" && sudo tar \
         --exclude='./1G.raw' \
         --exclude='./.mozilla' \
+        --exclude='./.config/mozilla' \
         --exclude='./.cache' \
         --exclude='./.bash_history' \
         --exclude='./.Xauthority' \
@@ -1065,6 +1066,13 @@ sudo rm -rf "squashfs-root/home/$LIVE_USER/.cache"
 # real, sempre -- é assim que a política de idioma e o langpack são
 # detectados corretamente.
 sudo rm -rf "squashfs-root/home/$LIVE_USER/.mozilla"
+# Firefox recentes (>=~130) usam ~/.config/mozilla como perfil real em vez
+# de ~/.mozilla, seguindo XDG -- descoberto porque o aviso de "caminho
+# residual" (acima) continuava achando /home/$LIVE_USER dentro de
+# .config/mozilla/firefox/*/extensions.json mesmo depois de já apagarmos
+# ~/.mozilla. Sem isso, o Firefox shipado carrega esse perfil "novo"
+# desatualizado (idioma/langpack cacheados de antes da política existir).
+sudo rm -rf "squashfs-root/home/$LIVE_USER/.config/mozilla"
 sudo rm -rf squashfs-root/tmp/*
 sudo rm -rf squashfs-root/tmp/.* 2>/dev/null || true
 sudo rm -f squashfs-root/usr/sbin/policy-rc.d
