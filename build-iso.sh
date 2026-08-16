@@ -481,7 +481,7 @@ LANG_MODE="$LANG_MODE" bash "$WORKDIR/customize-skel.sh" squashfs-root "$LIVE_US
 # reaplicada), nunca no home já criado. Reaplica skel/ direto no home do
 # usuário live também, sempre que ele já existir, pra não ficar
 # "congelado" numa versão antiga entre uma tentativa retomada e outra.
-if sudo test -d "squashfs-root/home/$LIVE_USER"; then
+if sudo chroot squashfs-root getent passwd "$LIVE_USER" >/dev/null 2>&1; then
     msg "    Usuário live já existe (build retomado) — reaplicando skel/ no home dele também..." "    Live user already exists (resumed build) — reapplying skel/ to their home too..."
     sudo cp -a "$WORKDIR/skel"/. "squashfs-root/home/$LIVE_USER"/
     sudo grep -rlZ "ufsc" "squashfs-root/home/$LIVE_USER" 2>/dev/null | sudo xargs -0 -r sed -i "s/ufsc/$LIVE_USER/g" || true
