@@ -18,7 +18,7 @@ wallpaperplugin=org.kde.slideshow
 
 [Containments][28][General]
 positions={"1600x1200":[]}
-url=desktop:/Desktop/
+url=desktop:/
 
 [Containments][28][Wallpaper][org.kde.slideshow][General]
 SlideInterval=3600
