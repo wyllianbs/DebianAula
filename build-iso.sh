@@ -473,6 +473,25 @@ trap cleanup EXIT INT TERM
 # (etapa 5), para que o novo usuário já nasça com tudo aplicado.
 LANG_MODE="$LANG_MODE" bash "$WORKDIR/customize-skel.sh" squashfs-root "$LIVE_USER" "$KEYBOARD_LAYOUT" "$ISO_LOCALE"
 
+# Ícone do Neovide. O LazyVim-Setup instala o neovide.desktop declarando
+# "Icon=neovide", mas nem ele nem o tarball oficial do Neovide (que traz só
+# o binário) instalam o arquivo do ícone -- e o Neovide não é empacotado no
+# Debian, então não há de onde vir. Resultado: entrada sem ícone no menu e
+# na barra de tarefas. O SVG oficial fica versionado em config/icons/ em
+# vez de ser baixado a cada build, para não virar mais uma dependência de
+# rede. Feito aqui na etapa 4 (não junto do neovide, na 6) porque esta
+# etapa roda sempre, inclusive em builds retomados pelo checkpoint.
+if [[ -f "$CONFIG_DIR/icons/neovide.svg" ]]; then
+    sudo mkdir -p squashfs-root/usr/share/icons/hicolor/scalable/apps
+    sudo cp "$CONFIG_DIR/icons/neovide.svg" \
+            squashfs-root/usr/share/icons/hicolor/scalable/apps/neovide.svg
+    sudo chmod 644 squashfs-root/usr/share/icons/hicolor/scalable/apps/neovide.svg
+    # O tema hicolor tem icon-theme.cache; se ele existir e não listar o
+    # arquivo novo, o ícone continua não sendo encontrado. Best-effort: se
+    # o gtk-update-icon-cache não estiver na imagem, seguir sem falhar.
+    sudo chroot squashfs-root gtk-update-icon-cache -q -f /usr/share/icons/hicolor 2>/dev/null || true
+fi
+
 # Se o usuário live JÁ existe (build retomado via checkpoint, depois da
 # etapa 5 já ter rodado numa tentativa anterior), o home dele só foi
 # populado a partir do skel/ UMA VEZ, na criação da conta (adduser, lá na
