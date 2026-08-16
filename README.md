@@ -412,8 +412,15 @@ qemu-system-x86_64 -accel hvf -cpu host -m 8G -vga virtio -usb \
 To compress the disk image after installation:
 
 ```bash
-qemu-img convert -p -c -O qcow2 -o compression_type=zstd,cluster_size=2M DebianAula.qcow2 DebianAula_zstd_2M.qcow2
+qemu-img convert -p -c -O qcow2 -o compression_type=zstd,cluster_size=2M,compression_level=19 DebianAula.qcow2 DebianAula_zstd_2M.qcow2
 ```
+
+- `-p` — show progress
+- `-c` — enable per-cluster compression
+- `-O qcow2` — output format
+- `compression_type=zstd` — zstd codec (better ratio than the default zlib; requires QEMU ≥ 5.1 to read the result)
+- `cluster_size=2M` — larger clusters give the compressor more data to work with, improving the ratio
+- `compression_level=19` — maximum zstd level (1–19); silently ignored on older `qemu-img` versions that don't expose this option, which use a built-in default instead
 
 To convert to other hypervisors (qcow2 is QEMU-native and not directly supported by VirtualBox or VMware):
 
