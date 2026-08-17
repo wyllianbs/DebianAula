@@ -21,7 +21,7 @@ distraction-free environment out of the box.
 >
 > All three are also available over **BitTorrent**, which is usually faster
 > and resumes cleanly on a bad connection — useful for files this size. Open
-> the item's [torrent](https://archive.org/download/DebianAula/DebianAula_archive.torrent)
+> the item's [torrent](https://archive.org/download/DebianAula/DebianAula.torrent)
 > (or this [magnet link](magnet:?xt=urn:btih:805ed53196e740ae598d5095568e4caed8006e9a&dn=DebianAula&tr=http%3A%2F%2Fbt1.archive.org%3A6969%2Fannounce&tr=http%3A%2F%2Fbt2.archive.org%3A6969%2Fannounce&ws=https%3A%2F%2Farchive.org%2Fdownload%2F))
 > in any torrent client and **deselect what you don't want** — the torrent
 > covers the whole item (~27GB), so pick just the image you need. In
