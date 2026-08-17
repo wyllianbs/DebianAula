@@ -9,13 +9,20 @@ produce a ready-to-boot ISO with a curated set of applications, sane defaults,
 and a pre-configured desktop environment — so students get a consistent,
 distraction-free environment out of the box.
 
-> **Download**: a pre-built ISO is available on the
-> [Internet Archive](https://archive.org/details/DebianAula)
-> ([direct download](https://archive.org/download/DebianAula/DebianAula.iso))
-> — no build required. This pre-built image was generated with the
-> **pt_BR / ABNT2 / America/Sao_Paulo** options and its own set of manual
-> Desktop Environment tweaks made during the interactive step — it does
-> **not** reflect the `en_US` / `br` / no-timezone defaults described below.
+> **Download**: pre-built images are available on the
+> [Internet Archive](https://archive.org/details/DebianAula) — no build
+> required:
+>
+> | File | What it is |
+> |---|---|
+> | [`DebianAula.iso`](https://archive.org/download/DebianAula/DebianAula.iso) | Live-only ISO — boots from USB, nothing written to disk. |
+> | [`DebianAulaInstall.iso`](https://archive.org/download/DebianAula/DebianAulaInstall.iso) | Live + Calamares installer, for installing to disk and customizing it yourself. |
+> | [`DebianAula_zstd_2M.qcow2`](https://archive.org/download/DebianAula/DebianAula_zstd_2M.qcow2) | **Suggested option** — a complete, already-installed system as a QEMU disk image. Boot it directly, no installation step (see [Testing the ISO](#testing-the-iso) for the command, and [Working with the qcow2 disk image](#working-with-the-qcow2-disk-image) to convert it for VirtualBox/VMware). |
+>
+> These pre-built images were generated with the **pt_BR / ABNT2 /
+> America/Sao_Paulo** options and their own set of manual Desktop
+> Environment tweaks made during the interactive step — they do **not**
+> reflect the `en_US` / `br` / no-timezone defaults described below.
 > Want a different language/keyboard/timezone, or to audit exactly what
 > goes into the image? Build it yourself — see [Installation](#installation).
 
