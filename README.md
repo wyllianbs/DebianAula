@@ -17,7 +17,7 @@ distraction-free environment out of the box.
 > |---|---|
 > | [`DebianAula.iso`](https://archive.org/download/DebianAula/DebianAula.iso) | Live-only ISO — boots from USB, nothing written to disk. |
 > | [`DebianAulaInstall.iso`](https://archive.org/download/DebianAula/DebianAulaInstall.iso) | Live + Calamares installer, for installing to disk and customizing it yourself. |
-> | [`DebianAula_zstd_2M.qcow2`](https://archive.org/download/DebianAula/DebianAula_zstd_2M.qcow2) | **Suggested option** — a complete, already-installed system as a QEMU disk image. Boot it directly, no installation step (see [Testing the ISO](#testing-the-iso) for the command, and [Working with the qcow2 disk image](#working-with-the-qcow2-disk-image) to convert it for VirtualBox/VMware). |
+> | [`DebianAula_zstd_2M.qcow2`](https://archive.org/download/DebianAula/DebianAula_zstd_2M.qcow2) | **Suggested option** — a complete, already-installed system as a QEMU disk image. Boot it directly, no installation step. It is zstd-compressed *internally* (see [Working with the qcow2 disk image](#working-with-the-qcow2-disk-image)), so there is nothing to unpack after downloading — QEMU 5.1+ reads it as-is, and `qemu-img` converts it to VirtualBox/VMware formats straight from this file. |
 >
 > These pre-built images were generated with the **pt_BR / ABNT2 /
 > America/Sao_Paulo** options and their own set of manual Desktop
@@ -416,7 +416,10 @@ qemu-system-x86_64 -accel hvf -cpu host -m 8G -vga virtio -usb \
 
 ### Working with the qcow2 disk image
 
-To compress the disk image after installation:
+To compress the disk image after installation — this is how the published
+[`DebianAula_zstd_2M.qcow2`](https://archive.org/download/DebianAula/DebianAula_zstd_2M.qcow2)
+was produced, and the result stays a normal bootable qcow2 (the compression is
+internal to the format, there is nothing to unpack before using it):
 
 ```bash
 qemu-img convert -p -c -O qcow2 -o compression_type=zstd,cluster_size=2M,compression_level=19 DebianAula.qcow2 DebianAula_zstd_2M.qcow2
