@@ -19,6 +19,13 @@ distraction-free environment out of the box.
 > | [`DebianAulaInstall.iso`](https://archive.org/download/DebianAula/DebianAulaInstall.iso) | Live + Calamares installer, for installing to disk and customizing it yourself. |
 > | [`DebianAula_zstd_2M.qcow2`](https://archive.org/download/DebianAula/DebianAula_zstd_2M.qcow2) | **Suggested option** — a complete, already-installed system as a QEMU disk image. Boot it directly, no installation step. It is zstd-compressed *internally* (see [Working with the qcow2 disk image](#working-with-the-qcow2-disk-image)), so there is nothing to unpack after downloading — QEMU 5.1+ reads it as-is, and `qemu-img` converts it to VirtualBox/VMware formats straight from this file. |
 >
+> All three are also available over **BitTorrent**, which is usually faster
+> and resumes cleanly on a bad connection — useful for files this size. Open
+> the item's [torrent](https://archive.org/download/DebianAula/DebianAula_archive.torrent)
+> (or this [magnet link](magnet:?xt=urn:btih:444669445ad535bbf6df8a7d9bb1c473fd61eb22&dn=DebianAula&tr=http%3A%2F%2Fbt1.archive.org%3A6969%2Fannounce&tr=http%3A%2F%2Fbt2.archive.org%3A6969%2Fannounce&ws=https://archive.org/download/))
+> in any torrent client and deselect the files you don't want — the torrent
+> covers the whole item, so you pick just the image you need.
+>
 > These pre-built images were generated with the **pt_BR / ABNT2 /
 > America/Sao_Paulo** options and their own set of manual Desktop
 > Environment tweaks made during the interactive step — they do **not**
