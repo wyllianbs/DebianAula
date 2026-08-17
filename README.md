@@ -21,12 +21,9 @@ distraction-free environment out of the box.
 >
 > All three are also available over **BitTorrent**, which is usually faster
 > and resumes cleanly on a bad connection — useful for files this size. Open
-> the item's [torrent](https://archive.org/download/DebianAula/DebianAula.torrent)
+> the item's [torrent](https://archive.org/download/DebianAula/DebianAula_archive.torrent)
 > in any torrent client and **deselect what you don't want** — the torrent
-> covers the whole item (~27GB), so pick just the image you need. In
-> particular, skip `history/files/DebianAulaInstall.iso.~1~`: that's a
-> superseded revision the Archive keeps around, an extra 6.6GB identical in
-> purpose to `DebianAulaInstall.iso`.
+> covers the whole item (~21GB), so pick just the image you need.
 >
 > These pre-built images were generated with the **pt_BR / ABNT2 /
 > America/Sao_Paulo** options and their own set of manual Desktop
