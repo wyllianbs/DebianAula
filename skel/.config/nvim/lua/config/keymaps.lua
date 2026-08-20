@@ -46,15 +46,21 @@ vim.api.nvim_set_keymap('t', '<F40>', string.format('<C-\\><C-n>:lua toggleFT("%
 -- Other terminals (GNOME Terminal, Alacritty, WezTerm, foot, xterm, and
 -- Konsole profiles using the "Xterm" keyboard scheme) send the standard
 -- xterm CSI encoding instead: Shift+F4 = <Esc>[1;2S, Ctrl+Shift+F4 = <Esc>[1;6S.
+-- Mapped in terminal mode too, matching the <F16>/<F40> pair above: without
+-- it the floaterm opens but can't be toggled shut from inside itself.
 local ESC = '\27'
 vim.api.nvim_set_keymap('n', ESC .. '[1;2S', '<S-F4>', { noremap = false, silent = true })
+vim.api.nvim_set_keymap('t', ESC .. '[1;2S', '<S-F4>', { noremap = false, silent = true })
 vim.api.nvim_set_keymap('n', ESC .. '[1;6S', '<S-C-F4>', { noremap = false, silent = true })
+vim.api.nvim_set_keymap('t', ESC .. '[1;6S', '<S-C-F4>', { noremap = false, silent = true })
 
 -- A third terminal encoding (confirmed via `cat -v`): SS3-style with the
 -- modifier digit inserted before the final letter instead of the standard
 -- CSI form -- Shift+F4 = <Esc>O2S, Ctrl+Shift+F4 = <Esc>O6S.
 vim.api.nvim_set_keymap('n', ESC .. 'O2S', '<S-F4>', { noremap = false, silent = true })
+vim.api.nvim_set_keymap('t', ESC .. 'O2S', '<S-F4>', { noremap = false, silent = true })
 vim.api.nvim_set_keymap('n', ESC .. 'O6S', '<S-C-F4>', { noremap = false, silent = true })
+vim.api.nvim_set_keymap('t', ESC .. 'O6S', '<S-C-F4>', { noremap = false, silent = true })
 
 -- ─────────────────────────────────────────────────────────────
 -- Code runner — F5 (run) / F6 (interactive), filetype-aware
