@@ -35,7 +35,6 @@ local floaterm_cmd_f = '--title= --titleposition=left --position=center --win
 vim.api.nvim_set_keymap('n', '<S-C-F4>', string.format(':lua toggleFT("%s", "%s")<CR>', name_win_f, floaterm_cmd_f), { noremap = true, silent = true })
 vim.api.nvim_set_keymap('t', '<S-C-F4>', string.format('<C-\\><C-n>:lua toggleFT("%s", "%s")<CR>', name_win_f, floaterm_cmd_f), { noremap = true, silent = true })
 
-
 -- Konsole sends Shift+F4 as <F16> and Ctrl+Shift+F4 as <F40>
 -- (verified with Ctrl-v in insert mode)
 vim.api.nvim_set_keymap('n', '<F16>', string.format(':lua toggleFT("%s", "%s")<CR>', name_win_h, floaterm_cmd_h), { noremap = true, silent = true })
@@ -56,12 +55,6 @@ vim.api.nvim_set_keymap('n', ESC .. '[1;6S', '<S-C-F4>', { noremap = false, sile
 -- CSI form -- Shift+F4 = <Esc>O2S, Ctrl+Shift+F4 = <Esc>O6S.
 vim.api.nvim_set_keymap('n', ESC .. 'O2S', '<S-F4>', { noremap = false, silent = true })
 vim.api.nvim_set_keymap('n', ESC .. 'O6S', '<S-C-F4>', { noremap = false, silent = true })
-
-
-
-
-
-
 
 -- ─────────────────────────────────────────────────────────────
 -- Code runner — F5 (run) / F6 (interactive), filetype-aware
@@ -224,7 +217,6 @@ vim.keymap.set('n', '<F41>', function() RunCode('f', false) end, { silent = true
 vim.keymap.set('n', '<F42>', function() RunCode('f', true)  end, { silent = true, desc = 'Run interactive (float)' })
 vim.keymap.set('t', '<F41>', [[<C-\><C-n>:lua RunCode('f', false)<CR>]], { silent = true })
 vim.keymap.set('t', '<F42>', [[<C-\><C-n>:lua RunCode('f', true)<CR>]],  { silent = true })
-
 
 -- Other terminals: standard xterm CSI encoding for F5/F6 (final byte '~',
 -- code 15 for F5, 17 for F6; modifier 2 = Shift, 6 = Ctrl+Shift). Same
