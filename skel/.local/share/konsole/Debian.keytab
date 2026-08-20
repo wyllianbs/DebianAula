@@ -1,4 +1,4 @@
-keyboard "WBS"
+keyboard "Debian"
 key Up+Shift-Ctrl-Alt-AppScreen : ScrollLineUp
 key Up-Shift+KeyPad+Ansi-AppCursorKeys : "\E[A"
 key Up-Shift+KeyPad+Ansi+AppCursorKeys : "\EOA"
