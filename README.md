@@ -25,7 +25,7 @@ distraction-free environment out of the box.
 > matching `.md5` file alongside every ISO it produces.
 >
 > All three images share the same live user: **username `debian`, password
-> `e=mc2`**.
+> `e=mc2`**, on a machine named **`DebianAula`**.
 >
 > All three are also available over **BitTorrent**, which is usually faster
 > and resumes cleanly on a bad connection — useful for files this size. Open
