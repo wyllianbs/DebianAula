@@ -1262,8 +1262,12 @@ xorriso -as mkisofs -R -r -J -joliet-long -l -cache-inodes -iso-level 3 \
     -isohybrid-gpt-basdat -isohybrid-apm-hfsplus \
     -o "$ISO_OUTPUT" iso
 
+msg ">>> Gerando checksum MD5..." ">>> Generating MD5 checksum..."
+md5sum "$ISO_OUTPUT" > "$ISO_OUTPUT.md5"
+
 rm -f "$PROGRESS_MARKER"
 
 echo
 msg ">>> ISO gerada em: $WORKDIR/$ISO_OUTPUT" ">>> ISO generated at: $WORKDIR/$ISO_OUTPUT"
+msg ">>> MD5: $WORKDIR/$ISO_OUTPUT.md5" ">>> MD5: $WORKDIR/$ISO_OUTPUT.md5"
 msg ">>> Concluído!" ">>> Done!"
