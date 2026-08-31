@@ -24,6 +24,9 @@ distraction-free environment out of the box.
 > still boot partway before failing strangely. `build-iso.sh` writes a
 > matching `.md5` file alongside every ISO it produces.
 >
+> All three images share the same live user: **username `debian`, password
+> `e=mc2`**.
+>
 > All three are also available over **BitTorrent**, which is usually faster
 > and resumes cleanly on a bad connection — useful for files this size. Open
 > the item's [torrent](https://archive.org/download/DebianAula/DebianAula_archive.torrent)
