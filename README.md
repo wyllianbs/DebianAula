@@ -213,6 +213,15 @@ The build then runs mostly unattended. It pauses twice for interaction:
   > Settings → Session → Locations in this session.** `~/Desktop` is already
   > created by the build and pointed at by `XDG_DESKTOP_DIR` — see
   > [Home folder layout](#home-folder-layout).
+  >
+  > **Whatever you do in Firefox here — history, cookies, searches, sites
+  > you open — is written into the image permanently.** The live user's
+  > profile is no longer wiped before packaging (see
+  > [Firefox profile persistence](#firefox-profile-persistence)), so it's
+  > shared by every boot of the live ISO and by the installed system alike.
+  > Don't browse or log into anything personal; once you're done adjusting
+  > Firefox (extensions, bookmarks, homepage), clear recent history
+  > (everything) before typing `exit`.
 
 ### Build process
 
@@ -564,6 +573,40 @@ pointing that at an inner `Desktop` doubles the path.
 To change the layout, edit `skel/.config/user-dirs.dirs` and the directory
 list in `customize-skel.sh` together — they must agree, or the fallback
 above kicks in again.
+
+## Firefox profile persistence
+
+The live user's Firefox profile (`~/.mozilla`, and `~/.config/mozilla` on
+Firefox ≥130) is **kept** in the built image — `build-iso.sh` no longer
+wipes it before packaging. This means any manual tweak made in the Xephyr
+session (installing an extension by hand, adjusting a setting Mozilla's
+[policy templates](https://mozilla.github.io/policy-templates/) don't
+cover, rearranging bookmarks) survives into the ISO, instead of being lost
+every time.
+
+The tradeoff: this is **one shared profile**, not one per student. It ships
+identically to every boot of the live ISO and to the installed system
+(which reuses the live account rather than creating a new one — see
+"What you get" above). Whatever Firefox state exists when the build
+finishes — history, cookies, open logins, saved form data — is what
+everyone gets, permanently. There's no per-session cleanup step; nothing
+resets it between boots except the live session's own overlay (which
+itself resets on every reboot in live-only mode, but the *baked-in* base
+profile stays the same).
+
+Because of that, **anything meant for every user should go through
+`config/firefox-policies.json` instead** (extensions, homepage, search
+engines, telemetry, etc. — see [Configuring the build](#configuring-the-build)):
+policies apply cleanly to a fresh profile without carrying build-session
+data along. Reserve manual Xephyr changes for things policies genuinely
+can't express, and follow the `[!IMPORTANT]` warning above — don't browse
+or log into anything personal there, and clear recent history before
+exiting.
+
+`build-iso.sh` still removes stale lock files (`.parentlock`, `*.sqlite-wal`,
+`*.sqlite-shm`) left over from Firefox being closed at the end of the
+Xephyr session, so the first real boot doesn't show a spurious "Firefox is
+already running" prompt.
 
 ## Customizing further
 

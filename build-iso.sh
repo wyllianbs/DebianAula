@@ -935,6 +935,13 @@ msg "      e digite 'exit' (ou Ctrl+D) aqui para o script continuar. Fechar" "  
 msg "      só a janela do Xephyr, ou deslogar de dentro do Plasma, NÃO é" "      closing the Xephyr window, or logging out from inside Plasma, is"
 msg "      suficiente — este terminal fica esperando o 'exit' mesmo assim." "      NOT enough — this terminal keeps waiting for 'exit' regardless."
 echo
+msg "    [!] O perfil do Firefox desta sessão (histórico, cookies, buscas," "    [!] This session's Firefox profile (history, cookies, searches,"
+msg "        sites abertos) é gravado na imagem e fica visível para TODO" "        open sites) is written into the image and stays visible to"
+msg "        mundo que usar esta ISO/instalação, sempre — não é apagado" "        EVERYONE who uses this ISO/install, permanently — it is no"
+msg "        depois. Não navegue nem faça login em nada pessoal aqui;" "        longer wiped afterwards. Don't browse or log into anything"
+msg "        ao terminar de ajustar o Firefox (extensões, bookmarks,"  "        personal here; once you're done adjusting Firefox (extensions,"
+msg "        homepage), limpe o histórico recente (tudo) antes de sair." "        bookmarks, homepage), clear recent history (everything) before exiting."
+echo
 read -rp "$(mp "Pressione ENTER para abrir o ambiente interativo do $LIVE_USER..." "Press ENTER to open the interactive environment for $LIVE_USER...")" _
 
 command -v Xephyr >/dev/null || { msg "ERRO: Xephyr não instalado. Rode: sudo apt-get install -y xserver-xephyr" "ERROR: Xephyr not installed. Run: sudo apt-get install -y xserver-xephyr"; exit 1; }
@@ -977,10 +984,12 @@ sudo chroot squashfs-root chown -R "$LIVE_USER:$LIVE_USER" "/home/$LIVE_USER" ||
 # é só a cópia dentro desta build (squashfs-root/etc/skel), refeita do
 # zero a cada vez. Exclui coisas específicas da sessão live que não fazem
 # sentido levar para um usuário novo: o placeholder de espaço em disco
-# (1G.raw), o perfil do Firefox (o projeto propositalmente não envia
-# perfil pronto — ver policies.json — copiar aqui vazaria histórico/
-# cookies/senhas da sessão de build), histórico de shell, caches e lixo
-# de sessão, e o user-places.xbel do KDE (gerado pela sessão live com o
+# (1G.raw), o perfil do Firefox (o usuário live já leva o dele consigo por
+# ser reaproveitado, não recriado -- mas dar o MESMO histórico/cookies da
+# sessão de build a qualquer conta nova que vier a existir depois não faz
+# sentido; ver "Firefox profile persistence" no README), histórico de
+# shell, caches e lixo de sessão, e o user-places.xbel do KDE (gerado pela
+# sessão live com o
 # caminho /home/$LIVE_USER deste build gravado dentro -- herdar isso faria
 # o Dolphin de outro usuário abrir num /home/<nome-antigo> inexistente; o
 # KDE recria esse arquivo sozinho, corretamente, no primeiro login).
@@ -1187,24 +1196,25 @@ fi
 # Limpeza antes de reempacotar
 sudo umount -l "squashfs-root/home/$LIVE_USER/.cache/doc" 2>/dev/null || true
 sudo rm -rf "squashfs-root/home/$LIVE_USER/.cache"
-# Perfil do Firefox do usuário live: se alguma sessão anterior (teste
-# manual no Xephyr, por exemplo) já tiver aberto o Firefox, o perfil fica
-# com um cache de idiomas/extensões desatualizado -- travado com o que
-# estava instalado/configurado NAQUELE momento (ex: antes do
-# firefox-l10n-* ou da política intl.locale.requested existirem). Como a
-# instalação agora reaproveita este mesmo usuário live (não cria conta
-# nova), esse perfil velho embarcaria em toda instalação e toda ISO live
-# gerada a partir daqui. Apaga pra garantir perfil zerado no primeiro uso
-# real, sempre -- é assim que a política de idioma e o langpack são
-# detectados corretamente.
-sudo rm -rf "squashfs-root/home/$LIVE_USER/.mozilla"
-# Firefox recentes (>=~130) usam ~/.config/mozilla como perfil real em vez
-# de ~/.mozilla, seguindo XDG -- descoberto porque o aviso de "caminho
-# residual" (acima) continuava achando /home/$LIVE_USER dentro de
-# .config/mozilla/firefox/*/extensions.json mesmo depois de já apagarmos
-# ~/.mozilla. Sem isso, o Firefox shipado carrega esse perfil "novo"
-# desatualizado (idioma/langpack cacheados de antes da política existir).
-sudo rm -rf "squashfs-root/home/$LIVE_USER/.config/mozilla"
+# Perfil do Firefox do usuário live: mantido de propósito (bookmarks,
+# extensões instaladas à mão, layout de toolbar, tudo que foi ajustado na
+# sessão Xephyr) -- versões anteriores deste script apagavam
+# ~/.mozilla/~/.config/mozilla aqui para não vazar histórico/cookies/senhas
+# da sessão de build para todo mundo que usar a imagem. Como o usuário live
+# é reaproveitado (instalação não cria conta nova) e a mesma imagem serve o
+# modo live, o perfil agora persiste igual para os dois -- o aviso antes de
+# abrir a sessão Xephyr (ver mais acima) é o que impede dado sensível de
+# entrar aqui, não mais este apagamento.
+#
+# Só remove locks/estado de execução que sobram de o Firefox ter sido
+# fechado no fim da sessão Xephyr -- sem isso, o primeiro boot real pode
+# mostrar "Firefox já está em execução" por causa de um lock órfão do PID
+# da sessão de build (que não existe mais no sistema instalado).
+sudo find "squashfs-root/home/$LIVE_USER/.mozilla" \
+          "squashfs-root/home/$LIVE_USER/.config/mozilla" \
+          -maxdepth 4 \( -name '.parentlock' -o -name 'lock' \
+                          -o -name '*.sqlite-wal' -o -name '*.sqlite-shm' \) \
+          -delete 2>/dev/null || true
 # Marcador "já corrigi os caminhos" do debianaula-fix-paths.sh: a sessão
 # Xephyr do build também dispara o autostart, então esse arquivo nasce
 # durante o próprio build e, se fosse junto na imagem, faria o script sair
