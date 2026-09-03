@@ -202,8 +202,12 @@ function RunCode(layout, interactive)
   local autoinsert = interactive and 'smart' or 'never'
 
   pcall(vim.cmd, 'FloatermKill!')
-  vim.cmd(string.format('FloatermNew --name=runterm %s --autoinsert=%s bash -c %s',
-          ft_layouts[layout], autoinsert, vim.fn.shellescape(cmd)))
+
+  -- vim.cmd(string.format('FloatermNew --name=runterm %s --autoinsert=%s bash -c %s',
+  --        ft_layouts[layout], autoinsert, vim.fn.shellescape(cmd)))
+
+  vim.cmd(string.format('FloatermNew --name=runterm %s bash -c %s',
+          ft_layouts[layout], vim.fn.shellescape(cmd)))
 
   if not interactive then
     -- nvim_buf_attach()/on_lines on a :terminal buffer is unsafe -- it was
