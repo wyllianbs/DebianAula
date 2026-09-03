@@ -31,7 +31,7 @@ vim.api.nvim_set_keymap('n', '<S-F4>', string.format(':lua toggleFT("%s", "%s")<
 vim.api.nvim_set_keymap('t', '<S-F4>', string.format('<C-\\><C-n>:lua toggleFT("%s", "%s")<CR>', name_win_h, floaterm_cmd_h), { noremap = true, silent = true })
 
 local name_win_f = 'fterminal'
-local floaterm_cmd_f = '--title= --titleposition=left --position=center --wintype=floating --height=0.9 --width=0.9'
+local floaterm_cmd_f = '--title= --titleposition=left --position=center --wintype=float --height=0.9 --width=0.9'
 vim.api.nvim_set_keymap('n', '<S-C-F4>', string.format(':lua toggleFT("%s", "%s")<CR>', name_win_f, floaterm_cmd_f), { noremap = true, silent = true })
 vim.api.nvim_set_keymap('t', '<S-C-F4>', string.format('<C-\\><C-n>:lua toggleFT("%s", "%s")<CR>', name_win_f, floaterm_cmd_f), { noremap = true, silent = true })
 
@@ -87,10 +87,16 @@ vim.api.nvim_set_keymap('t', ESC .. 'O6S', '<S-C-F4>', { noremap = false, silent
 --     Ctrl+Shift+F5 / F6  → floating window
 -- ─────────────────────────────────────────────────────────────
 
+-- vim-floaterm >= 2025-08 requires 'never'/'smart'/'always' for these two
+-- flags instead of the old false/0 booleans; 'never' is the equivalent of
+-- the old false/0 (see :h g:floaterm_autoinsert / :h g:floaterm_autoclose).
+-- --autoinsert is intentionally NOT set here: RunCode below chooses it
+-- per call ('never' for a plain run, 'smart' for F6/interactive so the
+-- cursor lands at the shell/REPL prompt ready to type, like pressing `i`).
 local ft_layouts = {
-  v = '--wintype=vsplit --width=0.45 --autoinsert=false --autoclose=0',
-  h = '--wintype=split --height=0.25 --autoinsert=false --autoclose=0',
-  f = '--title= --titleposition=left --position=center --wintype=floating --height=0.9 --width=0.9 --autoinsert=false --autoclose=0',
+  v = '--wintype=vsplit --width=0.45 --autoclose=never',
+  h = '--wintype=split --height=0.25 --autoclose=never',
+  f = '--title= --titleposition=left --position=center --wintype=float --height=0.9 --width=0.9 --autoclose=never',
 }
 
 -- Last executed source file; allows re-running from inside the terminal.
@@ -190,9 +196,63 @@ function RunCode(layout, interactive)
     return
   end
 
+  -- F6 (interactive) should drop straight into the shell/REPL prompt, like
+  -- pressing `i`; F5 (plain run) leaves the cursor in normal mode so the
+  -- user can read/scroll the output without accidentally typing into it.
+  local autoinsert = interactive and 'smart' or 'never'
+
   pcall(vim.cmd, 'FloatermKill!')
-  vim.cmd(string.format('FloatermNew --name=runterm %s bash -c %s',
-          ft_layouts[layout], vim.fn.shellescape(cmd)))
+  vim.cmd(string.format('FloatermNew --name=runterm %s --autoinsert=%s bash -c %s',
+          ft_layouts[layout], autoinsert, vim.fn.shellescape(cmd)))
+
+  if not interactive then
+    -- nvim_buf_attach()/on_lines on a :terminal buffer is unsafe -- it was
+    -- tried here to auto-scroll as output streamed in, but interfered with
+    -- the terminal's own VT100-driven rendering and left the window blank.
+    -- So: no live-follow while the job runs; instead, once it ends
+    -- (Neovim prints "[Process exited N]"), jump to the last line so the
+    -- final output/compiler errors are visible without manual scrolling --
+    -- Normal-mode terminal buffers don't auto-scroll on their own.
+    local buf = vim.api.nvim_get_current_buf()
+    local win = vim.api.nvim_get_current_win()
+    vim.api.nvim_create_autocmd('TermClose', {
+      buffer = buf,
+      once = true,
+      callback = function()
+        vim.schedule(function()
+          if vim.api.nvim_buf_is_valid(buf) and vim.api.nvim_win_is_valid(win)
+            and vim.api.nvim_win_get_buf(win) == buf then
+            pcall(vim.api.nvim_win_set_cursor, win, { vim.api.nvim_buf_line_count(buf), 0 })
+          end
+
+          -- "Press any key to close" only with a real UI attached and the
+          -- user still looking at this window; if they've already switched
+          -- away to keep editing, don't steal their next keystroke.
+          -- Skipped headless (e.g. nvim/tests/smoke.sh): nobody would ever
+          -- press that key, and getchar() would block forever.
+          if #vim.api.nvim_list_uis() == 0 then return end
+          if vim.api.nvim_win_is_valid(win) and vim.api.nvim_get_current_win() == win then
+            -- getchar() below blocks Nvim's whole event loop -- force a
+            -- redraw first so the output/cursor move above is actually
+            -- painted to the screen before we freeze waiting for a key
+            -- (otherwise it stays queued, invisible, until unblocked).
+            vim.cmd('redraw')
+            -- Drain any keys vim-floaterm itself queued internally (it
+            -- feeds <C-\><C-n> to leave Terminal-mode when autoinsert is
+            -- 'never') before waiting for the user's real keypress --
+            -- otherwise getchar() below would consume that instead and
+            -- close the floaterm immediately, without the user pressing
+            -- anything themselves.
+            while vim.fn.getchar(1) ~= 0 do
+              vim.fn.getchar()
+            end
+            vim.fn.getchar()
+            pcall(vim.cmd, 'FloatermKill!')
+          end
+        end)
+      end,
+    })
+  end
 
 end
 
