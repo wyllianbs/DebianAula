@@ -623,3 +623,13 @@ already running" prompt.
 ## License
 
 No license file yet — treat as "all rights reserved" until one is added.
+
+
+## 👤 Autor
+
+**Prof. Wyllian B. da Silva**  
+Universidade Federal de Santa Catarina (UFSC)  
+Departamento de Informática e Estatística (INE)
+
+
+---
