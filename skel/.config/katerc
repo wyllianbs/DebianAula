@@ -115,7 +115,7 @@ Word Completion Remove Tail=true
 [KateQuickRun]
 actionIcon=quickrun
 actionIconText=Quick Run
-cFlags=-std=c23 -Wall -Wextra -lm
+cFlags=-std=c23 -Wall -Wextra -Wl,--no-as-needed -lm
 configVersion=1
 cppFlags=
 customExtensions=
