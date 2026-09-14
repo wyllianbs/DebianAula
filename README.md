@@ -15,8 +15,8 @@ distraction-free environment out of the box.
 >
 > | File | What it is | MD5 |
 > |---|---|---|
-> | [`DebianAula.iso`](https://archive.org/download/DebianAula/DebianAula.iso) | Live-only ISO — boots from USB, nothing written to disk. | `cf7493db196a8ea9231a4029e21abbdd` |
-> | [`DebianAulaInstall.iso`](https://archive.org/download/DebianAula/DebianAulaInstall.iso) | Live + Calamares installer, for installing to disk and customizing it yourself. | `086890f6abd23430649354067dc8ddec` |
+> | [`DebianAula.iso`](https://archive.org/download/DebianAula/DebianAula.iso) | Live-only ISO — boots from USB, nothing written to disk. | `ecff570e54624b36a3b32753092fcd7b` |
+> | [`DebianAulaInstall.iso`](https://archive.org/download/DebianAula/DebianAulaInstall.iso) | Live + Calamares installer, for installing to disk and customizing it yourself. | `4100282e8be2e1915fe35888fb1d08aa` |
 >
 > Verify a download with `md5sum <file>` and compare against the value above
 > — useful after a long download, since a truncated or corrupted ISO can
