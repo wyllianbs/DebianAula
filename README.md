@@ -438,9 +438,7 @@ qemu-system-x86_64 -accel hvf -cpu host -m 8G -vga virtio -usb \
 
 ### Working with the qcow2 disk image
 
-To compress the disk image after installation — this is how the published
-[`DebianAula_zstd_2M.qcow2`](https://archive.org/download/DebianAula/DebianAula_zstd_2M.qcow2)
-was produced, and the result stays a normal bootable qcow2 (the compression is
+To compress the disk image after installation, and the result stays a normal bootable qcow2 (the compression is
 internal to the format, there is nothing to unpack before using it):
 
 ```bash
