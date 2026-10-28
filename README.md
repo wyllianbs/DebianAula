@@ -15,9 +15,8 @@ distraction-free environment out of the box.
 >
 > | File | What it is | MD5 |
 > |---|---|---|
-> | [`DebianAula.iso`](https://archive.org/download/DebianAula/DebianAula.iso) | Live-only ISO — boots from USB, nothing written to disk. | `cf7493db196a8ea9231a4029e21abbdd` |
-> | [`DebianAulaInstall.iso`](https://archive.org/download/DebianAula/DebianAulaInstall.iso) | Live + Calamares installer, for installing to disk and customizing it yourself. | `086890f6abd23430649354067dc8ddec` |
-> | [`DebianAula_zstd_2M.qcow2`](https://archive.org/download/DebianAula/DebianAula_zstd_2M.qcow2) | **Suggested option** — a complete, already-installed system as a QEMU disk image. Boot it directly, no installation step. It is zstd-compressed *internally* (see [Working with the qcow2 disk image](#working-with-the-qcow2-disk-image)), so there is nothing to unpack after downloading — QEMU 5.1+ reads it as-is, and `qemu-img` converts it to VirtualBox/VMware formats straight from this file. | — |
+> | [`DebianAula.iso`](https://archive.org/download/DebianAula/DebianAula.iso) | Live-only ISO — boots from USB, nothing written to disk. | [`DebianAula.iso.md5`](https://archive.org/download/DebianAula/DebianAula.iso.md5) |
+> | [`DebianAulaInstall.iso`](https://archive.org/download/DebianAula/DebianAulaInstall.iso) | Live + Calamares installer, for installing to disk and customizing it yourself. | [`DebianAulaInstall.iso.md5`](https://archive.org/download/DebianAula/DebianAulaInstall.iso.md5) |
 >
 > Verify a download with `md5sum <file>` and compare against the value above
 > — useful after a long download, since a truncated or corrupted ISO can
@@ -440,9 +439,7 @@ qemu-system-x86_64 -accel hvf -cpu host -m 8G -vga virtio -usb \
 
 ### Working with the qcow2 disk image
 
-To compress the disk image after installation — this is how the published
-[`DebianAula_zstd_2M.qcow2`](https://archive.org/download/DebianAula/DebianAula_zstd_2M.qcow2)
-was produced, and the result stays a normal bootable qcow2 (the compression is
+To compress the disk image after installation, and the result stays a normal bootable qcow2 (the compression is
 internal to the format, there is nothing to unpack before using it):
 
 ```bash
@@ -624,3 +621,13 @@ already running" prompt.
 ## License
 
 No license file yet — treat as "all rights reserved" until one is added.
+
+
+## 👤 Autor
+
+**Prof. Wyllian Bezerra da Silva**  
+Universidade Federal de Santa Catarina (UFSC)  
+Departamento de Informática e Estatística (INE)
+
+
+---
