@@ -318,7 +318,46 @@ else
 fi
 
 if [[ -n "$ISO" ]]; then
-    msg "    Usando ISO já presente localmente: $ISO" "    Using ISO already present locally: $ISO"
+    # Há ISO local — mas pode haver uma versão mais nova disponível.
+    # Se a verificação remota (etapa 0) encontrou algo diferente, pergunta.
+    if [[ "$DEBIAN_ISO_VERSION" == "latest" && -n "$REMOTE_ISO" && "$REMOTE_ISO" != "$ISO" ]]; then
+        echo
+        msg "    ISO local  : $ISO" "    Local ISO  : $ISO"
+        msg "    ISO remota : $REMOTE_ISO" "    Remote ISO : $REMOTE_ISO"
+        echo
+        while true; do
+            read -rp "$(mp "    Baixar a nova versão e usar ela? [s/N]: " "    Download the new version and use it? [y/N]: ")" _UPDATE_ISO
+            _UPDATE_ISO="${_UPDATE_ISO,,}"
+            case "$_UPDATE_ISO" in
+                s|sim|y|yes)
+                    msg "    Baixando $REMOTE_ISO ..." "    Downloading $REMOTE_ISO ..."
+                    curl -fL --retry 3 --retry-delay 5 -O "$BASE_URL/$REMOTE_ISO"
+                    msg "    Download concluído. Removendo ISO antiga: $ISO" "    Download complete. Removing old ISO: $ISO"
+                    rm -f "$ISO"
+                    ISO="$REMOTE_ISO"
+                    # Apaga iso/ e squashfs-root/ para que a etapa [3/8]
+                    # re-extraia a partir da nova ISO — sem isso, o build
+                    # silenciosamente continuaria usando o conteúdo antigo.
+                    if [[ -d iso || -d squashfs-root ]]; then
+                        msg "    Removendo extração anterior (iso/ e squashfs-root/) para re-extrair da nova ISO..." \
+                            "    Removing previous extraction (iso/ and squashfs-root/) to re-extract from the new ISO..."
+                        sudo rm -rf iso squashfs-root
+                        rm -f "$PROGRESS_MARKER"
+                    fi
+                    break
+                    ;;
+                ""|n|não|nao|no)
+                    msg "    Mantendo ISO local: $ISO" "    Keeping local ISO: $ISO"
+                    break
+                    ;;
+                *)
+                    msg "    Digite 's' para baixar ou 'n' para manter o arquivo local." "    Enter 'y' to download or 'n' to keep the local file."
+                    ;;
+            esac
+        done
+    else
+        msg "    Usando ISO já presente localmente: $ISO" "    Using ISO already present locally: $ISO"
+    fi
 else
     if [[ "$DEBIAN_ISO_VERSION" == "latest" ]]; then
         # Reaproveita a verificação já feita na etapa 0; só refaz se falhou antes.
