@@ -56,8 +56,8 @@ distraction-free environment out of the box.
   This is deliberate: it avoids an entire class of bugs where a freshly
   created account would inherit config files/caches that still hardcoded
   the live-build username's path.
-- **Curated app set**: Firefox (Mozilla repo), VS Code, Slayer Editor (via
-  extrepo), Neovim configured with
+- **Curated app set**: Firefox (Mozilla repo), VS Code,
+  [Slayer Editor](https://github.com/wyllianbs/SE) (via extrepo), Neovim configured with
   [LazyVim](https://github.com/wyllianbs/LazyVim-Setup), Kate with
   [kate-quickrun](https://github.com/wyllianbs/kate-quickrun), Thonny, LibreOffice
   (only the language pack you chose at build time, to keep the image lean),
